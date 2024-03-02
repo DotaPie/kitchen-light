@@ -22,8 +22,10 @@ void setup_LED_strip();
 void setup()
 {
     delay(DELAY_BEFORE_STARTUP_MS);
-    CONSOLE_CRLF("SETUP")
 
+    CONSOLE_SERIAL.begin(CONSOLE_BAUDRATE);
+
+    CONSOLE_CRLF("SETUP")
     setup_LED_strip();
 }
 
