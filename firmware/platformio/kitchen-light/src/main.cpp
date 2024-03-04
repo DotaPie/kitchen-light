@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Preferences.h>
 
 // project includes
 #include "console.h"
@@ -13,39 +14,78 @@
 #include <FastLED.h>
 
 // enums
-enum STATE {STATE_NONE, STATE_ERROR, STATE_MAIN};
-enum COLOR_PICKER_TYPE {CPT_NONE, CPT_ERROR, CPT_COLOR_TEMPERATURE, CPT_COLOR_HUE};
+enum STATE {STATE_NONE, STATE_MAIN};
+enum COLOR_PICKER_TYPE {CPT_NONE, CPT_COLOR_TEMPERATURE, CPT_COLOR_HUE};
 
 // globals
 STATE state, previousState;
 COLOR_PICKER_TYPE current_CPT, previous_CPT;
 CRGB currentColor, previousColor;
 
-const char* stateString[] = {"STATE_NONE", "STATE_ERROR", "STATE_MAIN"};
-const char* CPT_String[] = {"CPT_NONE", "CPT_ERROR", "CPT_COLOR_TEMPERATURE", "CPT_COLOR_HUE"};
+const char* stateString[] = {"STATE_NONE", "STATE_MAIN"};
+const char* CPT_String[] = {"CPT_NONE", "CPT_COLOR_TEMPERATURE", "CPT_COLOR_HUE"};
 
 CRGB LED_stripArray[LED_STRIP_COUNT];
 RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 RotaryEncoder encoder_2 = RotaryEncoder(RE_2_IN1_PIN, RE_2_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 Adafruit_ST7789 display = Adafruit_ST7789(DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_RST_PIN);
 
+Preferences preferences;
+
 // function definitions
 
-void setDefaultValues()
+void loadPreferences()
 {
     state = STATE_MAIN;
     previousState = STATE_NONE;
 
-    current_CPT = CPT_COLOR_TEMPERATURE;
-    previous_CPT = CPT_NONE;  
+    CONSOLE("Loading preferences: ")
 
-    currentColor = CRGB(255, 255, 255); // TODO .. neutral K  
+    bool firstTimeRun;
+
+    if(preferences.getUInt("firstRun", 0) == 0)
+    {
+        firstTimeRun = true;
+        preferences.putUInt("firstRun", 100);
+
+        preferences.putUChar("CPT", (uint8_t)CPT_COLOR_TEMPERATURE);
+
+        preferences.putUChar("color-R", 255); // TODO .. neutral K 
+        preferences.putUChar("color-G", 255); // TODO .. neutral K 
+        preferences.putUChar("color-B", 255); // TODO .. neutral K 
+    }
+    else
+    {
+        firstTimeRun = false;
+    }
+
+    current_CPT = (COLOR_PICKER_TYPE)preferences.getUChar("CPT", (uint8_t)CPT_NONE);  
+    currentColor = CRGB(preferences.getUChar("color-R", 255), preferences.getUChar("color-G", 255), preferences.getUChar("color-B", 255)); // TODO .. neutral K  
+    
+    previous_CPT = CPT_NONE;  
     previousColor = CRGB(0, 0, 0);
+
+    CONSOLE_CRLF("OK")
+
+    CONSOLE("  |-- first time run: ") 
+    CONSOLE_CRLF(firstTimeRun ? "Yes" : "No")
+
+    CONSOLE("  |-- current color picker type: ") 
+    CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT])
+
+    CONSOLE("  |-- current color: ") 
+    CONSOLE("[R:") 
+    CONSOLE(currentColor.r)
+    CONSOLE(" | G:") 
+    CONSOLE(currentColor.g)
+    CONSOLE(" | B:") 
+    CONSOLE(currentColor.b)
+    CONSOLE_CRLF("]") 
 }
 
 void setup_LED_strip()
 {
-    CONSOLE("  |-- LED strip: ")
+    CONSOLE("LED strip: ")
     FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, LED_STRIP_COUNT).setCorrection(TypicalLEDStrip);
     FastLED.setBrightness(DEFAULT_BRIGHTNESS);
     
@@ -80,12 +120,12 @@ void checkRotaryEncoderPosition_2()
 
 void setupRotaryEncoders()
 {
-    CONSOLE("  |-- Rotary encoder #1: ")
+    CONSOLE("Rotary encoder #1: ")
     attachInterrupt(digitalPinToInterrupt(RE_1_IN1_PIN), checkRotaryEncoderPosition_1, CHANGE);
     attachInterrupt(digitalPinToInterrupt(RE_1_IN2_PIN), checkRotaryEncoderPosition_1, CHANGE);
     CONSOLE_CRLF("OK")
 
-    CONSOLE("  |-- Rotary encoder #2: ")
+    CONSOLE("Rotary encoder #2: ")
     attachInterrupt(digitalPinToInterrupt(RE_2_IN1_PIN), checkRotaryEncoderPosition_2, CHANGE);
     attachInterrupt(digitalPinToInterrupt(RE_2_IN2_PIN), checkRotaryEncoderPosition_2, CHANGE);
     CONSOLE_CRLF("OK")
@@ -93,27 +133,28 @@ void setupRotaryEncoders()
 
 void setupSwitches()
 {
-    CONSOLE("  |-- Switches: ")   
+    CONSOLE("Switches: ")   
     pinMode(SWITCH_1_PIN, INPUT_PULLUP);
     pinMode(SWITCH_2_PIN, INPUT_PULLUP);
     CONSOLE_CRLF("OK") 
 
-    CONSOLE("        |-- Switch state #1: ") 
+    CONSOLE("  |-- Switch state #1: ") 
     CONSOLE_CRLF(digitalRead(SWITCH_1_PIN) == LOW ? "ON" : "OFF")
 
-    CONSOLE("        |-- Switch state #2: ") 
+    CONSOLE("  |-- Switch state #2: ") 
     CONSOLE_CRLF(digitalRead(SWITCH_2_PIN) == LOW ? "ON" : "OFF")
 }
 
 void setupDisplay()
 {
-    CONSOLE("  |-- Display: ")
+    CONSOLE("Display: ")
     display.init(DISPLAY_WIDTH, DISPLAY_HEIGHT);       
     display.setRotation(DISPLAY_ROTATION_DEGREE/90);
     display.invertDisplay(false); 
     display.fillScreen(ST77XX_BLACK);
     display.setCursor(4, 4);
     display.setTextColor(ST77XX_WHITE);
+    display.setTextSize(2);
     display.setTextWrap(true);
     display.print("Booting ...");
 
@@ -191,6 +232,11 @@ void setupDisplay()
     CONSOLE_CRLF("OK") 
 }
 
+void setupPreferences()
+{
+    preferences.begin("app", false);
+}
+
 void setup()
 {
     delay(DELAY_BEFORE_STARTUP_MS);
@@ -198,8 +244,10 @@ void setup()
     CONSOLE_SERIAL.begin(CONSOLE_BAUDRATE);
 
     CONSOLE_CRLF()
-    CONSOLE_CRLF("SETUP")
-    setDefaultValues();
+    CONSOLE_CRLF("~~~ SETUP ~~~")
+    CONSOLE_CRLF()
+    setupPreferences();
+    loadPreferences();
     setupDisplay();
     setupRotaryEncoders();
     setupSwitches();
@@ -338,9 +386,13 @@ void setup()
     }*/
 
     state = STATE_MAIN;
+
+    CONSOLE_CRLF()
+    CONSOLE_CRLF("~~~ LOOP ~~~")
+    CONSOLE_CRLF()
 }
 
 void loop() 
 {
-
+    
 }
