@@ -14,18 +14,19 @@
 #include <FastLED.h>
 
 // enums
-enum STATE {STATE_NONE, STATE_MAIN};
+enum STATE {STATE_NONE, STATE_MAIN, STATE_BRIGHTNESS, STATE_COLOR};
 enum COLOR_PICKER_TYPE {CPT_NONE, CPT_COLOR_TEMPERATURE, CPT_COLOR_HUE};
 
 // globals
 STATE state, previousState;
 COLOR_PICKER_TYPE current_CPT, previous_CPT;
 CRGB currentColor, previousColor;
+uint8_t previousSwitch_1, previousSwitch_2;
 
-const char* stateString[] = {"STATE_NONE", "STATE_MAIN"};
-const char* CPT_String[] = {"CPT_NONE", "CPT_COLOR_TEMPERATURE", "CPT_COLOR_HUE"};
+const char* stateString[] = {"NONE", "MAIN", "BRIGHTNESS", "COLOR"};
+const char* CPT_String[] = {"NONE", "COLOR_TEMPERATURE", "COLOR_HUE"};
 
-CRGB LED_stripArray[LED_STRIP_COUNT];
+CRGB LED_stripArray[LED_STRIP_LED_COUNT];
 RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 RotaryEncoder encoder_2 = RotaryEncoder(RE_2_IN1_PIN, RE_2_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 Adafruit_ST7789 display = Adafruit_ST7789(DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_RST_PIN);
@@ -36,12 +37,10 @@ Preferences preferences;
 
 void loadPreferences()
 {
-    state = STATE_MAIN;
-    previousState = STATE_NONE;
+    bool firstTimeRun = false;
 
     CONSOLE("Loading preferences: ")
-
-    bool firstTimeRun;
+    preferences.begin("app", false);
 
     if(preferences.getUInt("firstRun", 0) == 0)
     {
@@ -53,10 +52,6 @@ void loadPreferences()
         preferences.putUChar("color-R", 255); // TODO .. neutral K 
         preferences.putUChar("color-G", 255); // TODO .. neutral K 
         preferences.putUChar("color-B", 255); // TODO .. neutral K 
-    }
-    else
-    {
-        firstTimeRun = false;
     }
 
     current_CPT = (COLOR_PICKER_TYPE)preferences.getUChar("CPT", (uint8_t)CPT_NONE);  
@@ -83,20 +78,44 @@ void loadPreferences()
     CONSOLE_CRLF("]") 
 }
 
-void setup_LED_strip()
+void update_LED_strip()
 {
-    CONSOLE("LED strip: ")
-    FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, LED_STRIP_COUNT).setCorrection(TypicalLEDStrip);
-    FastLED.setBrightness(DEFAULT_BRIGHTNESS);
-    
-    for(uint16_t i = 0; i < LED_STRIP_COUNT; i++)
+    for(uint16_t i = 0; i < LED_STRIP_LED_COUNT; i++)
+    {
+        LED_stripArray[i] = CRGB(0, 0, 0);    
+    }
+
+    // zone 1
+    if(previousSwitch_1 == LOW)
+    {
+        for(uint16_t i = 0; i < ZONE_1_LED_COUNT; i++)
+        {
+            LED_stripArray[i] = currentColor;    
+        }
+    }
+
+    // zone 2
+    if(previousSwitch_2 == LOW)
+    {
+        for(uint16_t i = ZONE_1_LED_COUNT; i < LED_STRIP_LED_COUNT; i++)
+        {
+            LED_stripArray[i] = currentColor;    
+        }
+    }
+
+    FastLED.show();
+}
+
+void LED_strip_load_animation()
+{
+    for(uint16_t i = 0; i < LED_STRIP_LED_COUNT; i++)
     {
         for(uint16_t j = 0; j < i; j++)
         {
             LED_stripArray[j] = ColorFromPalette(RainbowColors_p, (uint8_t)(j/2), DEFAULT_BRIGHTNESS, COLOR_BLENDING);   
         }
 
-        for(uint16_t j = i; j < LED_STRIP_COUNT; j++)
+        for(uint16_t j = i; j < LED_STRIP_LED_COUNT; j++)
         {
             LED_stripArray[j] = CRGB(0, 0, 0);   
         }  
@@ -104,6 +123,16 @@ void setup_LED_strip()
         FastLED.show();
         delay(6);
     }
+}   
+
+void setup_LED_strip()
+{
+    CONSOLE("LED strip: ")
+    FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, LED_STRIP_LED_COUNT).setCorrection(TypicalLEDStrip);
+    FastLED.setBrightness(DEFAULT_BRIGHTNESS);
+    
+    LED_strip_load_animation();
+    update_LED_strip();
 
     CONSOLE_CRLF("OK")
 }
@@ -232,21 +261,49 @@ void setupDisplay()
     CONSOLE_CRLF("OK") 
 }
 
-void setupPreferences()
+void loadDefaultValues()
 {
-    preferences.begin("app", false);
+    state = STATE_MAIN;
+    previousState = STATE_NONE;
+    previousSwitch_1 = digitalRead(SWITCH_1_PIN);
+    previousSwitch_2 = digitalRead(SWITCH_2_PIN);
+}
+
+void checkSwitches()
+{
+    bool switch_1 = digitalRead(SWITCH_1_PIN);
+    bool switch_2 = digitalRead(SWITCH_2_PIN);
+
+    if(switch_1 != previousSwitch_1)
+    {
+        previousSwitch_1 = switch_1;
+
+        update_LED_strip();
+
+        CONSOLE("SWITCH_1 STATE CHANGE: ");
+        CONSOLE_CRLF(switch_1 == LOW ? "ON" : "OFF");
+    }
+
+    if(switch_2 != previousSwitch_2)
+    {
+        previousSwitch_2 = switch_2;
+
+        update_LED_strip();
+
+        CONSOLE("SWITCH_2 STATE CHANGE: ");
+        CONSOLE_CRLF(switch_2 == LOW ? "ON" : "OFF");
+    }
 }
 
 void setup()
 {
     delay(DELAY_BEFORE_STARTUP_MS);
-
     CONSOLE_SERIAL.begin(CONSOLE_BAUDRATE);
-
     CONSOLE_CRLF()
     CONSOLE_CRLF("~~~ SETUP ~~~")
     CONSOLE_CRLF()
-    setupPreferences();
+
+    loadDefaultValues();
     loadPreferences();
     setupDisplay();
     setupRotaryEncoders();
@@ -394,5 +451,13 @@ void setup()
 
 void loop() 
 {
-    
+    if(state != previousState)
+    {
+        previousState = state;
+
+        CONSOLE("STATE CHANGE: ");
+        CONSOLE_CRLF(stateString[(uint8_t)state])
+    }
+
+    checkSwitches();
 }

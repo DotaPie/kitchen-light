@@ -5,12 +5,13 @@
 #define DELAY_BEFORE_STARTUP_MS 10
 
 // LED strip
-#define LED_STRIP_COUNT 213
+#define LED_STRIP_LED_COUNT 3 // 213
 #define LED_STRIP_TYPE WS2812B
 #define COLOR_ORDER GRB
 #define DEFAULT_BRIGHTNESS 255
 #define COLOR_BLENDING LINEARBLEND
-#define FPS -1 // -1 for unlocked FPS
+#define ZONE_1_LED_COUNT 2
+#define ZONE_2_LED_COUNT 1
 
 // display
 #define DISPLAY_WIDTH 240
