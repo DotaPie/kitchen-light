@@ -226,7 +226,7 @@ void checkSwitches()
     }
 }
 
-void checkRotaryEncoders()
+void checkRotaryEncoders(/*uint32_t switch_1_timer, uint32_t switch_2_timer*/)
 {
     encoder_1.tick();
     encoder_2.tick();
@@ -239,9 +239,11 @@ void checkRotaryEncoders()
         if(state != STATE_BRIGHTNESS)
         {
             state = STATE_BRIGHTNESS;
+        }
+        else if(state == STATE_BRIGHTNESS)  
+        {
 
-            // TODO
-        }       
+        }     
     }
 }
 
@@ -270,12 +272,27 @@ void setup()
 
 void loop() 
 {
+    static uint32_t mainScreenTimer = 0;
+
     if(state != previousState)
     {
         previousState = state;
 
+        if(state == STATE_MAIN)
+        {
+            clearDisplay();
+            updateMainScreen(88, 88, 88, 4, 8888, 88.88, 3);   
+        }
+
         CONSOLE("STATE CHANGE: ");
         CONSOLE_CRLF(stateString[(uint8_t)state])
+    }
+
+    // update screen once a second
+    if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS)
+    {
+        mainScreenTimer = millis();
+        updateMainScreen(88, 88, 88, 4, 8888, 88.88, 3);
     }
 
     checkSwitches();
