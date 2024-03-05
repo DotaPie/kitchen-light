@@ -21,6 +21,7 @@ STATE state, previousState;
 COLOR_PICKER_TYPE current_CPT, previous_CPT;
 CRGB currentColor, previousColor;
 uint8_t previousSwitch_1, previousSwitch_2;
+uint16_t encoder_1_position, encoder_2_position;
 
 const char* stateString[] = {"NONE", "MAIN", "BRIGHTNESS", "COLOR"};
 const char* CPT_String[] = {"NONE", "COLOR_TEMPERATURE", "COLOR_HUE"};
@@ -28,8 +29,6 @@ const char* CPT_String[] = {"NONE", "COLOR_TEMPERATURE", "COLOR_HUE"};
 CRGB LED_stripArray[LED_STRIP_LED_COUNT];
 RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 RotaryEncoder encoder_2 = RotaryEncoder(RE_2_IN1_PIN, RE_2_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
-uint16_t encoder_1_position = 0;
-uint16_t encoder_2_position = 0;
 
 Preferences preferences;
 
@@ -56,10 +55,13 @@ void loadPreferences()
 
     current_CPT = (COLOR_PICKER_TYPE)preferences.getUChar("CPT", (uint8_t)CPT_NONE);  
     currentColor = CRGB(preferences.getUChar("color-R", 255), preferences.getUChar("color-G", 255), preferences.getUChar("color-B", 255)); // TODO .. neutral K  
-    
+      
     previous_CPT = CPT_NONE;  
     previousColor = CRGB(0, 0, 0);
 
+    encoder_1_position = 0;
+    encoder_2_position = 0;
+    
     CONSOLE_CRLF("OK")
 
     CONSOLE("  |-- first time run: ") 
@@ -152,11 +154,13 @@ void setupRotaryEncoders()
     CONSOLE("Rotary encoder #1: ")
     attachInterrupt(digitalPinToInterrupt(RE_1_IN1_PIN), checkRotaryEncoderPosition_1, CHANGE);
     attachInterrupt(digitalPinToInterrupt(RE_1_IN2_PIN), checkRotaryEncoderPosition_1, CHANGE);
+    pinMode(RE_1_SW_PIN, INPUT_PULLUP);
     CONSOLE_CRLF("OK")
 
     CONSOLE("Rotary encoder #2: ")
     attachInterrupt(digitalPinToInterrupt(RE_2_IN1_PIN), checkRotaryEncoderPosition_2, CHANGE);
     attachInterrupt(digitalPinToInterrupt(RE_2_IN2_PIN), checkRotaryEncoderPosition_2, CHANGE);
+    pinMode(RE_2_SW_PIN, INPUT_PULLUP);
     CONSOLE_CRLF("OK")
 }
 
@@ -204,9 +208,12 @@ void checkSwitches()
 {
     bool switch_1 = digitalRead(SWITCH_1_PIN);
     bool switch_2 = digitalRead(SWITCH_2_PIN);
+    static uint32_t switch_1_debounce_timer = 0;
+    static uint32_t switch_2_debounce_timer = 0;
 
-    if(switch_1 != previousSwitch_1)
+    if(switch_1 != previousSwitch_1 && millis() - switch_1_debounce_timer > SWITCH_DEBOUNCE_TIMER_MS)
     {
+        switch_1_debounce_timer = millis();
         previousSwitch_1 = switch_1;
 
         update_LED_strip();
@@ -215,8 +222,9 @@ void checkSwitches()
         CONSOLE_CRLF(switch_1 == LOW ? "ON" : "OFF");
     }
 
-    if(switch_2 != previousSwitch_2)
+    if(switch_2 != previousSwitch_2 && millis() - switch_2_debounce_timer > SWITCH_DEBOUNCE_TIMER_MS)
     {
+        switch_2_debounce_timer = millis();
         previousSwitch_2 = switch_2;
 
         update_LED_strip();
@@ -226,24 +234,69 @@ void checkSwitches()
     }
 }
 
-void checkRotaryEncoders(/*uint32_t switch_1_timer, uint32_t switch_2_timer*/)
+void checkRotaryEncoders(uint32_t *rotary_encoder_1_timer, uint32_t *rotary_encoder_2_timer)
 {
     encoder_1.tick();
     encoder_2.tick();
 
     uint16_t encoder_1_new_position = encoder_1.getPosition();
+    int8_t encoder_1_direction = (int8_t)encoder_1.getDirection();
+
     uint16_t encoder_2_new_position = encoder_2.getPosition();
+    int8_t encoder_2_direction = (int8_t)encoder_2.getDirection();
+
+    uint8_t encoder_1_switch = digitalRead(RE_1_SW_PIN);
+    uint8_t encoder_2_switch = digitalRead(RE_2_SW_PIN);
+
+    static uint32_t encoder_1_switch_debounce_timer = 0;
+    static uint32_t encoder_2_switch_debounce_timer = 0;
 
     if(encoder_1_position != encoder_1_new_position)
     {
+        *rotary_encoder_1_timer = millis();
+        encoder_1_position = encoder_1_new_position;
+
+        CONSOLE_CRLF("ROTARY ENCODER 1 CHANGE")
+        CONSOLE("  |-- position: ")
+        CONSOLE_CRLF(encoder_1_new_position % ROTARY_ENCODER_STEPS)
+        CONSOLE("  |-- direction: ")
+        CONSOLE_CRLF(encoder_1_direction)
+
         if(state != STATE_BRIGHTNESS)
         {
             state = STATE_BRIGHTNESS;
-        }
-        else if(state == STATE_BRIGHTNESS)  
-        {
+        }    
+    }
+    else if(encoder_2_position != encoder_2_new_position)
+    {
+        *rotary_encoder_2_timer = millis();
+        encoder_2_position = encoder_2_new_position;
 
-        }     
+        CONSOLE_CRLF("ROTARY ENCODER 2 CHANGE")
+        CONSOLE("  |-- position: ")
+        CONSOLE_CRLF(encoder_2_new_position % ROTARY_ENCODER_STEPS)
+        CONSOLE("  |-- direction: ")
+        CONSOLE_CRLF(encoder_2_direction)
+
+        if(state != STATE_COLOR)
+        {
+            state = STATE_COLOR;
+        }  
+    }
+
+    if(encoder_1_switch == LOW && millis() - encoder_1_switch_debounce_timer > ENCODER_SWITCH_DEBOUNCE_TIMER_MS)
+    {
+        encoder_1_switch_debounce_timer = millis();
+
+        // RESERVED         
+    }
+
+    if(encoder_2_switch == LOW && millis() - encoder_2_switch_debounce_timer > ENCODER_SWITCH_DEBOUNCE_TIMER_MS)
+    {
+        encoder_2_switch_debounce_timer = millis();
+        current_CPT = (current_CPT == CPT_COLOR_TEMPERATURE) ? CPT_COLOR_HUE : CPT_COLOR_TEMPERATURE;   
+        CONSOLE("COLOR PICKER TYPE CHANGE: ")  
+        CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT])      
     }
 }
 
@@ -273,6 +326,8 @@ void setup()
 void loop() 
 {
     static uint32_t mainScreenTimer = 0;
+    static uint32_t rotary_encoder_1_timer = 0;
+    static uint32_t rotary_encoder_2_timer = 0;
 
     if(state != previousState)
     {
@@ -281,20 +336,53 @@ void loop()
         if(state == STATE_MAIN)
         {
             clearDisplay();
-            updateMainScreen(88, 88, 88, 4, 8888, 88.88, 3);   
+            updateMainScreen(true, 88, 88, 88, 4, 8888, 88.88, 3);   
+        }
+        else if(state == STATE_BRIGHTNESS)
+        {
+            clearDisplay();
+            // TODO: draw brightness bar    
+        }
+        else if(state == STATE_COLOR)
+        {
+            clearDisplay();
+
+            if(current_CPT == CPT_COLOR_TEMPERATURE)
+            {
+                // TODO: draw color temperature bar 
+            }
+            else if(current_CPT == CPT_COLOR_HUE)
+            {
+                // TODO: draw color hue bar   
+            }
         }
 
         CONSOLE("STATE CHANGE: ");
         CONSOLE_CRLF(stateString[(uint8_t)state])
+
+        if(state == STATE_COLOR)
+        {
+            CONSOLE("  |-- color picker type: ")
+            CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT]);
+        }
     }
 
     // update screen once a second
-    if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS)
+    if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE_MAIN)
     {
         mainScreenTimer = millis();
-        updateMainScreen(88, 88, 88, 4, 8888, 88.88, 3);
+        updateMainScreen(false, 88, 88, 88, 4, 8888, 88.88, 3);
     }
 
     checkSwitches();
-    checkRotaryEncoders();
+    checkRotaryEncoders(&rotary_encoder_1_timer, &rotary_encoder_2_timer);
+
+    if(state == STATE_BRIGHTNESS && millis() - rotary_encoder_1_timer > ANY_SETTING_SCREEN_TIMER_MS)
+    {
+        state = STATE_MAIN;
+    }
+    else if(state == STATE_COLOR && millis() - rotary_encoder_2_timer > ANY_SETTING_SCREEN_TIMER_MS)
+    {
+        state = STATE_MAIN;
+    }
 }

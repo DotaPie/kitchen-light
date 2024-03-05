@@ -15,7 +15,7 @@ void loadBrightness();
 CRGB updateDisplayColorHue(uint16_t index, MOVEMENT_DIRECTION movementDirection);
 CRGB updateDisplayColorTemperature(uint16_t index, MOVEMENT_DIRECTION movementDirection);
 void updateBrightness();
-void updateMainScreen(uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t wifiSingal);
+void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t wifiSingal);
 void clearDisplay();
 
 #endif

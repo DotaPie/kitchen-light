@@ -338,7 +338,7 @@ void updateDate(uint8_t day, uint8_t month, uint16_t year)
     display.print(year);        
 }
 
-void updateMainScreen(uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t wifiSignal)
+void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t wifiSignal)
 {
     static uint8_t prevHour = 255; 
     static uint8_t prevMinute = 255;
@@ -351,7 +351,7 @@ void updateMainScreen(uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, 
 
     CONSOLE_CRLF("DISPLAY UPDATE")
 
-    if(hour != prevHour)
+    if(hour != prevHour || forceAll)
     {
         updateHour(hour);
         prevHour = hour;
@@ -362,28 +362,28 @@ void updateMainScreen(uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, 
     doubledotVisible = !doubledotVisible;
     CONSOLE_CRLF("  |-- DOUBLEDOT UPDATED")
 
-    if(minute != prevMinute)
+    if(minute != prevMinute || forceAll)
     {
         updateMinute(minute);
         prevMinute = minute;
         CONSOLE_CRLF("  |-- MINUTE UPDATED")
     } 
 
-    if(wifiSignal != prevWifiSignal)
+    if(wifiSignal != prevWifiSignal || forceAll)
     {
         updateWifiSignal(wifiSignal);
         prevWifiSignal = wifiSignal;
         CONSOLE_CRLF("  |-- WIFI SIGNAL UPDATED")
     } 
 
-    if(temperature != prevTemperature)
+    if(temperature != prevTemperature || forceAll)
     {
         updateTemperature(temperature);
         prevTemperature = temperature;
         CONSOLE_CRLF("  |-- TEMPERATURE UPDATED")
     }
 
-    if(day != prevDay || month != prevMonth || year != prevYear)
+    if(day != prevDay || month != prevMonth || year != prevYear || forceAll)
     {
         updateDate(day, month, year);
         prevDay = day;

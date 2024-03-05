@@ -21,9 +21,16 @@
 #define RGB_PICKER_OFFSET_Y 80
 #define RGB_PICKER_HEIGHT 80
 #define MAIN_SCREEN_TIMER_MS 1000
+#define ANY_SETTING_SCREEN_TIMER_MS 3000
 
 /* Note: Due to the nature of added complexity, RGB picker width is fixed to 288px (with display being 320px).
  */
 
+// switches
+#define SWITCH_DEBOUNCE_TIMER_MS 5
+
+// encoders
+#define ROTARY_ENCODER_STEPS 20
+#define ENCODER_SWITCH_DEBOUNCE_TIMER_MS 333
 
 #endif
