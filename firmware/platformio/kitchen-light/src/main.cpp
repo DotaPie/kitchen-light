@@ -419,6 +419,7 @@ void loop()
             updatePreferences();
 
             clearDisplay();
+            mainScreenTimer = millis();
             updateMainScreen(true, 88, 88, 88, 4, 8888, 88.88, 3);   
         }
         else if(state == STATE_BRIGHTNESS)

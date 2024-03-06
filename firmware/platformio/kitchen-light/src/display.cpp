@@ -275,7 +275,7 @@ CRGB updateDisplayColorTemperature(uint16_t index, MOVEMENT_DIRECTION movementDi
 
 void updateBrightnessDisplay(uint8_t brightness)
 {
-    CONSOLE_CRLF("\r\nBRIGHTNESS DISPLAY UPDATE")
+    CONSOLE_CRLF("\r\nDISPLAY: BRIGHTNESS UPDATED")
 
     uint16_t barWidth = map(brightness, 0, 255, 0, PICKER_WIDTH - 4);
 
@@ -370,7 +370,7 @@ void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, 
     static uint8_t prevWifiSignal = 255;
     static bool doubledotVisible = false;
 
-    CONSOLE_CRLF("\r\nMAIN DISPLAY UPDATE")
+    CONSOLE_CRLF("\r\nDISPLAY: MAIN UPDATED")
 
     if(hour != prevHour || forceAll)
     {
@@ -417,5 +417,5 @@ void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, 
 void clearDisplay()
 {
     display.fillScreen(RGB888_TO_RGB565(0, 0, 0));
-    CONSOLE_CRLF("\r\nDISPLAY CLEARED")
+    CONSOLE_CRLF("\r\nDISPLAY: CLEARED")
 }
