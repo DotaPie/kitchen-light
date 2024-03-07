@@ -20,9 +20,9 @@
 #define PICKER_OFFSET_X 16
 #define PICKER_OFFSET_Y 80
 #define PICKER_HEIGHT 80
-#define MAIN_SCREEN_TIMER_MS 1000
-#define ANY_SETTING_SCREEN_TIMER_MS 3000
-#define PICKER_WIDTH 288 // due to the nature of added complexity, pickers width is fixed to 288px (with display being 320px), changing value will break color hue and color temperature pickers
+#define PICKER_WIDTH 288 // number should be divisible by 6, or behaviour might vary
+#define MAIN_SCREEN_TIMER_MS 1000 // do not change, doubledot animation is tied to this time
+#define ANY_SETTING_SCREEN_TIMER_MS 2000
 
 // switches
 #define SWITCH_DEBOUNCE_TIMER_MS 5
@@ -31,8 +31,11 @@
 #define ROTARY_ENCODER_STEPS 30
 #define ENCODER_SWITCH_DEBOUNCE_TIMER_MS 333
 #define BRIGHTNESS_STEP 8 // 8 brightness change for 1 encoder step
+#define COLOR_HUE_INDEX_STEP 4 // 8 color picker change for 1 encoder step
 
 // preferences
-#define DEFAULT_ID 101 // change this to other number if you want to force default configuration
+#define DEFAULT_ID 102 // change this to other number if you want to force default configuration
+
+extern const char* monthNames[];
 
 #endif

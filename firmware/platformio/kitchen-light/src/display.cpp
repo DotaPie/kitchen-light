@@ -8,102 +8,55 @@
 #include "console.h"
 #include <FastLED.h>
 
-const char* monthNames[] = {"NONE",
-                            "Jan.",
-                            "Feb.",
-                            "Mar.",
-                            "April",
-                            "May",
-                            "June",
-                            "July",
-                            "Aug.",
-                            "Sep.",
-                            "Oct.",
-                            "Nov.",
-                            "Dec."};
-
 Adafruit_ST7789 display = Adafruit_ST7789(DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_RST_PIN);
 
-void loadPickerColorHue()
+void loadDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColorHueIndex)
 {
-    uint8_t colorIndex;
-
     // R -> G
-    colorIndex = 0;
     for(uint16_t i = 0; i < PICKER_WIDTH * 1/6; i++)
     {
-        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(255, colorIndex, 0));
-            
-        if(i % 3 != 0)
-        {
-            colorIndex += 8; 
-        }
+        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(255, map(i, 0, PICKER_WIDTH * 1/6 - 1, 0, 255), 0));
     }
 
-    colorIndex = 0;
-    for(uint16_t i = 48; i < PICKER_WIDTH * 2/6; i++)
+    for(uint16_t i = PICKER_WIDTH * 1/6; i < PICKER_WIDTH * 2/6; i++)
     {
-        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(255 - colorIndex, 255, 0)); 
-
-        if(i % 3 != 0)
-        {
-            colorIndex += 8; 
-        }
+        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(map(i - PICKER_WIDTH * 1/6, 0, PICKER_WIDTH * 1/6 - 1, 255, 0), 255, 0)); 
     }
 
     // G -> B
-    colorIndex = 0;
-    for(uint16_t i = 96; i < PICKER_WIDTH * 3/6; i++)
+    for(uint16_t i = PICKER_WIDTH * 2/6; i < PICKER_WIDTH * 3/6; i++)
     {
-        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(0, 255, colorIndex));
-            
-        if(i % 3 != 0)
-        {
-            colorIndex += 8; 
-        }
+        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(0, 255, map(i - PICKER_WIDTH * 2/6, 0, PICKER_WIDTH * 1/6 - 1, 0, 255)));
     }
 
-    colorIndex = 0;
-    for(uint16_t i = 144; i < PICKER_WIDTH * 4/6; i++)
+    for(uint16_t i = PICKER_WIDTH * 3/6; i < PICKER_WIDTH * 4/6; i++)
     {
-        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(0, 255 - colorIndex, 255)); 
-
-        if(i % 3 != 0)
-        {
-            colorIndex += 8; 
-        }
+        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(0, map(i - PICKER_WIDTH * 3/6, 0, PICKER_WIDTH * 1/6 - 1, 255, 0), 255)); 
     }
 
     // B -> R
-    colorIndex = 0;
-    for(uint16_t i = 192; i < PICKER_WIDTH * 5/6; i++)
+    for(uint16_t i = PICKER_WIDTH * 4/6; i < PICKER_WIDTH * 5/6; i++)
     {
-        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(colorIndex, 0, 255));
-            
-        if(i % 3 != 0)
-        {
-            colorIndex += 8; 
-        }
+        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(map(i - PICKER_WIDTH * 4/6, 0, PICKER_WIDTH * 1/6 - 1, 0, 255), 0, 255));
     }
 
-    colorIndex = 0;
-    for(uint16_t i = 240; i < PICKER_WIDTH; i++)
+    for(uint16_t i = PICKER_WIDTH * 5/6; i < PICKER_WIDTH; i++)
     {
-        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(255, 0, 255 - colorIndex));  
-
-        if(i % 3 != 0)
-        {
-            colorIndex += 8; 
-        }
+        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(255, 0, map(i - PICKER_WIDTH * 5/6, 0, PICKER_WIDTH * 1/6 - 1, 255, 0)));  
     }
+
+    display.setCursor(PICKER_OFFSET_X, PICKER_OFFSET_Y - 30);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 3);
+    display.setTextWrap(false);
+    display.print("COLOR HUE");
+
+    CONSOLE_CRLF("\r\nDISPLAY: COLOR HUE LOADED")
+
+    updateDisplayColorHue(currentColorHueIndex, previousColorHueIndex);
 }
 
-void loadPickerColorTemperature()
-{
-    // TODO
-}
-
-void loadBrightness(uint8_t brightness)
+void loadDisplayBrightness(uint8_t brightness)
 {
     display.drawRect(PICKER_OFFSET_X, PICKER_OFFSET_Y, PICKER_WIDTH, PICKER_HEIGHT, RGB888_TO_RGB565(255,255,255));
     display.drawRect(PICKER_OFFSET_X + 1, PICKER_OFFSET_Y + 1, PICKER_WIDTH - 2, PICKER_HEIGHT - 2, RGB888_TO_RGB565(255,255,255));
@@ -114,169 +67,117 @@ void loadBrightness(uint8_t brightness)
     display.setTextWrap(false);
     display.print("BRIGHTNESS");
 
-    updateBrightnessDisplay(brightness);
+    CONSOLE_CRLF("\r\nDISPLAY: BRIGHTNESS LOADED")
+
+    updateDisplayBrightness(brightness);
 }
 
-CRGB updateDisplayColorHue(uint16_t index, MOVEMENT_DIRECTION movementDirection)
+uint16_t calculatePickerPositionFromColorHue(CRGB color)
 {
-    uint8_t red, green, blue;
-
-    if(movementDirection == DIRECTION_RIGHT)
+    // R -> G
+    if(color.b == 0)
     {
-        // top arrow
-        display.fillTriangle(PICKER_OFFSET_X + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X - 8) + index, PICKER_OFFSET_Y - 2 - 15, (PICKER_OFFSET_X + 8) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(255, 0, 0));
-        display.drawLine((PICKER_OFFSET_X - 2) + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X - 10) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(0, 0, 0));
-        display.drawLine((PICKER_OFFSET_X - 1) + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X - 9) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(0, 0, 0));
-        
-        // bottom arrow
-        display.fillTriangle(PICKER_OFFSET_X + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
-        display.drawLine((PICKER_OFFSET_X - 2) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 10) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
-        display.drawLine((PICKER_OFFSET_X - 1) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 9) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
-
-        // R -> G
-        if(index >= 0 && index < 48)
+        if(color.r == 255)
         {
-            red = 255;
-            green = (uint8_t)((float)index * (256/48));
-            blue = 0;
-        }
-        else if(index >= 48 && index < 96)
-        {
-            red = 255 - (uint8_t)((float)(index - 48) * (256/48));
-            green = 255;
-            blue = 0;    
-        }
-
-        // G -> B
-        else if(index >= 96 && index < 144)
-        {
-            red = 0;
-            green = 255;
-            blue = (uint8_t)((float)(index - 96) * (256/48));
-        }
-        else if(index >= 144 && index < 192)
-        {
-            red = 0;
-            green = 255 - (uint8_t)((float)(index - 144) * (256/48));
-            blue = 255;    
-        }
-
-        // B -> R
-        else if(index >= 192 && index < 240)
-        {
-            red = uint8_t((float)(index - 192) * (256/48));
-            green = 0;
-            blue = 255;
-        }
-        else if(index >= 240 && index < 288)
-        {
-            red = 255;
-            green = 0;
-            blue = 255 - (uint8_t)((float)(index - 240) * (256/48));    
-        }
-    }
-
-    // movement to left
-    if(movementDirection == DIRECTION_LEFT)
-    {
-        // top arrow
-        display.fillTriangle(PICKER_OFFSET_X + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X - 8) + index, PICKER_OFFSET_Y - 2 - 15, (PICKER_OFFSET_X + 8) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(255, 0, 0));
-        display.drawLine((PICKER_OFFSET_X + 2) + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X + 10) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(0, 0, 0));
-        display.drawLine((PICKER_OFFSET_X + 1) + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X + 9) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(0, 0, 0));
-        
-        // bottom arrow
-        display.fillTriangle(PICKER_OFFSET_X + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
-        display.drawLine((PICKER_OFFSET_X + 2) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X + 10) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
-        display.drawLine((PICKER_OFFSET_X + 1) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X + 9) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
-
-        // R -> G
-        if(index >= 0 && index < 48)
-        {
-            red = 255;
-            green = (uint8_t)((float)index * (256/48));
-            blue = 0;
-        }
-        else if(index >= 48 && index < 96)
-        {
-            red = 255 - (uint8_t)((float)(index - 48) * (256/48));
-            green = 255;
-            blue = 0;    
-        }
-
-        // G -> B
-        else if(index >= 96 && index < 144)
-        {
-            red = 0;
-            green = 255;
-            blue = (uint8_t)((float)(index - 96) * (256/48));
-        }
-        else if(index >= 144 && index < 192)
-        {
-            red = 0;
-            green = 255 - (uint8_t)((float)(index - 144) * (256/48));
-            blue = 255;    
-        }
-
-        // B -> R
-        else if(index >= 192 && index < 240)
-        {
-            red = uint8_t((float)(index - 192) * (256/48));
-            green = 0;
-            blue = 255;
-        }
-        else if(index >= 240 && index < 288)
-        {
-            red = 255;
-            green = 0;
-            blue = 255 - (uint8_t)((float)(index - 240) * (256/48));    
+            return map(color.g, 0, 255, 0, PICKER_WIDTH * 1/6 - 1);
         } 
+        else if(color.g == 255)
+        {
+            return map(color.r, 255, 0, PICKER_WIDTH * 1/6, PICKER_WIDTH * 2/6 - 1);    
+        }   
     }
-
-    return CRGB(red, green, blue);
+    // G -> B
+    else if(color.r == 0)
+    {
+        if(color.g == 255)
+        {
+            return map(color.b, 0, 255, PICKER_WIDTH * 2/6, PICKER_WIDTH * 3/6 - 1);
+        } 
+        else if(color.b == 255)
+        {
+            return map(color.g, 255, 0, PICKER_WIDTH * 3/6, PICKER_WIDTH * 4/6 - 1);    
+        }     
+    }
+    // B -> R
+    else if(color.g == 0)
+    {
+        if(color.b == 255)
+        {
+            return map(color.r, 0, 255, PICKER_WIDTH * 4/6, PICKER_WIDTH * 5/6 - 1);
+        } 
+        else if(color.r == 255)
+        {
+            return map(color.b, 255, 0, PICKER_WIDTH * 5/6, PICKER_WIDTH - 1);    
+        }      
+    }
 }
 
-CRGB updateDisplayColorTemperature(uint16_t index, MOVEMENT_DIRECTION movementDirection)
+CRGB calculateColorHueFromPickerPosition(uint16_t pickerPosition)
 {
-    uint8_t red, green, blue;
+    CRGB color;
 
-    if(movementDirection == DIRECTION_RIGHT)
+    // R -> G
+    if(pickerPosition >= 0 && pickerPosition < PICKER_WIDTH * 2/6) 
     {
-        // top arrow
-        display.fillTriangle(PICKER_OFFSET_X + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X - 8) + index, PICKER_OFFSET_Y - 2 - 15, (PICKER_OFFSET_X + 8) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(255, 0, 0));
-        display.drawLine((PICKER_OFFSET_X - 2) + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X - 10) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(0, 0, 0));
-        display.drawLine((PICKER_OFFSET_X - 1) + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X - 9) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(0, 0, 0));
-        
-        // bottom arrow
-        display.fillTriangle(PICKER_OFFSET_X + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
-        display.drawLine((PICKER_OFFSET_X - 2) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 10) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
-        display.drawLine((PICKER_OFFSET_X - 1) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 9) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
+        color.b = 0;  
 
-        // TODO
-    }
-
-    // movement to left
-    if(movementDirection == DIRECTION_LEFT)
+        if(pickerPosition >= 0 && pickerPosition < PICKER_WIDTH * 1/6)  
+        {
+            color.r = 255;
+            color.g = map(pickerPosition, 0, PICKER_WIDTH * 1/6 - 1, 0, 255);
+        }
+        else if(pickerPosition >= PICKER_WIDTH * 1/6 && pickerPosition < PICKER_WIDTH * 2/6)
+        {
+            color.r = map(pickerPosition, PICKER_WIDTH * 1/6, PICKER_WIDTH * 2/6 - 1, 255, 0);
+            color.g = 255;    
+        }
+    }  
+    // G -> B
+    else if(pickerPosition >= PICKER_WIDTH * 2/6 && pickerPosition < PICKER_WIDTH * 4/6)
     {
-        // top arrow
-        display.fillTriangle(PICKER_OFFSET_X + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X - 8) + index, PICKER_OFFSET_Y - 2 - 15, (PICKER_OFFSET_X + 8) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(255, 0, 0));
-        display.drawLine((PICKER_OFFSET_X + 2) + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X + 10) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(0, 0, 0));
-        display.drawLine((PICKER_OFFSET_X + 1) + index, PICKER_OFFSET_Y - 2, (PICKER_OFFSET_X + 9) + index, PICKER_OFFSET_Y - 2 - 15, RGB888_TO_RGB565(0, 0, 0));
-        
-        // bottom arrow
-        display.fillTriangle(PICKER_OFFSET_X + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
-        display.drawLine((PICKER_OFFSET_X + 2) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X + 10) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
-        display.drawLine((PICKER_OFFSET_X + 1) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X + 9) + index, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
+        color.r = 0; 
 
-        // TODO
-    }
+        if(pickerPosition >= PICKER_WIDTH * 2/6 && pickerPosition < PICKER_WIDTH * 3/6)  
+        {
+            color.g = 255;
+            color.b = map(pickerPosition, PICKER_WIDTH * 2/6, PICKER_WIDTH * 3/6 - 1, 0, 255);   
+        }
+        else if(pickerPosition >= PICKER_WIDTH * 3/6 && pickerPosition < PICKER_WIDTH * 4/6)
+        {
+            color.g = map(pickerPosition, PICKER_WIDTH * 3/6, PICKER_WIDTH * 4/6 - 1, 255, 0);
+            color.b = 255;  
+        }
+    } 
+    // B -> R
+    else if(pickerPosition >= PICKER_WIDTH * 4/6 && pickerPosition < PICKER_WIDTH)
+    {
+        color.g = 0;
 
-    return CRGB(red, green, blue);
+        if(pickerPosition >= PICKER_WIDTH * 4/6 && pickerPosition < PICKER_WIDTH * 5/6)  
+        {
+            color.b = 255;
+            color.r = map(pickerPosition, PICKER_WIDTH * 4/6, PICKER_WIDTH * 5/6 - 1, 0, 255); 
+        }
+        else if(pickerPosition >= PICKER_WIDTH * 5/6 && pickerPosition < PICKER_WIDTH)
+        {
+            color.b = map(pickerPosition, PICKER_WIDTH * 5/6, PICKER_WIDTH - 1, 255, 0);
+            color.r = 255; 
+        } 
+    }     
+
+    return color;   
 }
 
-void updateBrightnessDisplay(uint8_t brightness)
+void updateDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColorHueIndex)
 {
-    CONSOLE_CRLF("\r\nDISPLAY: BRIGHTNESS UPDATED")
+    display.fillTriangle(PICKER_OFFSET_X + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
+    display.fillTriangle(PICKER_OFFSET_X + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
+   
+    CONSOLE_CRLF("\r\nDISPLAY: COLOR HUE UPDATED")
+}
 
+void updateDisplayBrightness(uint8_t brightness)
+{
     uint16_t barWidth = map(brightness, 0, 255, 0, PICKER_WIDTH - 4);
 
     for(uint16_t i = 0; i < barWidth; i++)
@@ -288,6 +189,8 @@ void updateBrightnessDisplay(uint8_t brightness)
     {
         display.drawFastVLine(PICKER_OFFSET_X + 2 + i, PICKER_OFFSET_Y + 2, PICKER_HEIGHT - 4, RGB888_TO_RGB565(0, 0, 0));
     } 
+
+    CONSOLE_CRLF("\r\nDISPLAY: BRIGHTNESS UPDATED")
 }
 
 void updateWifiSignal(uint8_t wifiSignal)
