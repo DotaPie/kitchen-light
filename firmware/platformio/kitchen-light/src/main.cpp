@@ -43,16 +43,16 @@ void loadPreferences()
         firstTimeRun = true;
         preferences.putUInt("firstRun", DEFAULT_ID);
         preferences.putUChar("CPT", (uint8_t)CPT_COLOR_TEMPERATURE);
-        preferences.putUInt("color-hue-index", 0);
-        preferences.putUInt("color-temperature-index", 0);
+        preferences.putUInt("color-hue", 0);
+        preferences.putUInt("color-t", 0);
         preferences.putUChar("brightness", DEFAULT_BRIGHTNESS);
     }
 
     current_CPT = (COLOR_PICKER_TYPE)preferences.getUChar("CPT", (uint8_t)CPT_NONE);  
     previous_CPT = current_CPT;
-    currentColorHueIndex = preferences.getUInt("color-hue-index"); 
+    currentColorHueIndex = preferences.getUInt("color-hue", 0); 
     previousColorHueIndex = currentColorHueIndex;
-    currentColorTemperatureIndex = preferences.getUInt("color-temperature-index"); 
+    currentColorTemperatureIndex = preferences.getUInt("color-t", 0); 
     previousColorTemperatureIndex = currentColorTemperatureIndex;
     currentBrightness = preferences.getUChar("brightness", DEFAULT_BRIGHTNESS);
     previousBrightness = currentBrightness;    
@@ -467,14 +467,14 @@ void updatePreferences()
         preferences.putUChar("CPT", (uint8_t)current_CPT);
     }
 
-    if(currentColorHueIndex != preferences.getUInt("color-hue-index"))
+    if(currentColorHueIndex != preferences.getUInt("color-hue"))
     {
-        preferences.putUInt("color-hue-index", currentColorHueIndex);
+        preferences.putUInt("color-hue", currentColorHueIndex);
     }
 
-    if(currentColorTemperatureIndex != preferences.getUInt("color-temperature-index"))
+    if(currentColorTemperatureIndex != preferences.getUInt("color-t"))
     {
-        preferences.putUInt("color-temperature-index", currentColorTemperatureIndex);
+        preferences.putUInt("color-t", currentColorTemperatureIndex);
     }
 
     if(currentBrightness != preferences.getUChar("brightness"))
