@@ -153,6 +153,8 @@ uint16_t calculatePickerPositionFromColorHue(CRGB color)
             return map(color.b, 255, 0, PICKER_WIDTH * 5/6, PICKER_WIDTH - 1);    
         }      
     }
+
+    return 0; // will never get here
 }
 
 CRGB calculateColorHueFromPickerPosition(uint16_t pickerPosition)
@@ -244,14 +246,196 @@ void updateDisplayBrightness(uint8_t brightness)
     CONSOLE_CRLF("\r\nDISPLAY: BRIGHTNESS UPDATED")
 }
 
-void updateWifiSignal(uint8_t wifiSignal)
+void drawWifiSignalUndefined()
 {
-    display.fillRect(display.width() - 32, 0, display.width(), 32, RGB888_TO_RGB565(0, 255, 0));
-    display.setCursor(display.width() - 32, 2);
-    display.setTextColor(RGB888_TO_RGB565(255, 0, 0));
-    display.setTextSize(4);
-    display.setTextWrap(false);
-    display.print(wifiSignal);
+    display.fillRect(display.width() - 64, 0, 64, 32, RGB888_TO_RGB565(0, 0, 0)); 
+}
+
+void drawWifiSignalDisconnected()
+{
+    display.fillRect(display.width() - 64, 0, 64, 32, RGB888_TO_RGB565(0, 0, 0)); 
+
+    // dot
+    display.fillCircle(display.width() - 22, 28, 3, RGB888_TO_RGB565(128, 128, 128));
+
+    // 1st ring
+    display.drawFastVLine(display.width() - 22, 18, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, RGB888_TO_RGB565(128, 128, 128));
+    }
+    display.endWrite();
+
+    // 2nd ring
+    display.drawFastVLine(display.width() - 22, 12, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, RGB888_TO_RGB565(128, 128, 128));
+    }
+    display.endWrite();
+
+    // 3rd ring
+    display.drawFastVLine(display.width() - 22, 6, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, RGB888_TO_RGB565(128, 128, 128));
+    }
+    display.endWrite();
+
+    // remove excessive parts of rings
+    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, RGB888_TO_RGB565(0, 0, 0));
+    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, RGB888_TO_RGB565(0, 0, 0)); 
+
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawLine(display.width() - 44, i, display.width() - 1, 30 + i, RGB888_TO_RGB565(255, 0, 0));
+    }
+}
+
+void drawWifiSignalBad()
+{
+    display.fillRect(display.width() - 64, 0, 64, 32, RGB888_TO_RGB565(0, 0, 0)); 
+
+    // dot
+    display.fillCircle(display.width() - 22, 28, 3, RGB888_TO_RGB565(255, 0, 0));
+
+    // 1st ring
+    display.drawFastVLine(display.width() - 22, 18, 3, RGB888_TO_RGB565(255, 0, 0));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, RGB888_TO_RGB565(255, 0, 0));
+    }
+    display.endWrite();
+
+    // 2nd ring
+    display.drawFastVLine(display.width() - 22, 12, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, RGB888_TO_RGB565(128, 128, 128));
+    }
+    display.endWrite();
+
+    // 3rd ring
+    display.drawFastVLine(display.width() - 22, 6, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, RGB888_TO_RGB565(128, 128, 128));
+    }
+    display.endWrite();
+
+    // remove excessive parts of rings
+    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, RGB888_TO_RGB565(0, 0, 0));
+    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, RGB888_TO_RGB565(0, 0, 0)); 
+}
+
+void drawWifiSignalGood()
+{
+    display.fillRect(display.width() - 64, 0, 64, 32, RGB888_TO_RGB565(0, 0, 0)); 
+
+    // dot
+    display.fillCircle(display.width() - 22, 28, 3, RGB888_TO_RGB565(255, 255, 0));
+
+    // 1st ring
+    display.drawFastVLine(display.width() - 22, 18, 3, RGB888_TO_RGB565(255, 255, 0));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, RGB888_TO_RGB565(255, 255, 0));
+    }
+    display.endWrite();
+
+    // 2nd ring
+    display.drawFastVLine(display.width() - 22, 12, 3, RGB888_TO_RGB565(255, 255, 0));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, RGB888_TO_RGB565(255, 255, 0));
+    }
+    display.endWrite();
+
+    // 3rd ring
+    display.drawFastVLine(display.width() - 22, 6, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, RGB888_TO_RGB565(128, 128, 128));
+    }
+    display.endWrite();
+
+    // remove excessive parts of rings
+    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, RGB888_TO_RGB565(0, 0, 0));
+    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, RGB888_TO_RGB565(0, 0, 0)); 
+}
+
+void drawWifiSignalExcellent()
+{
+    display.fillRect(display.width() - 64, 0, 64, 32, RGB888_TO_RGB565(0, 0, 0)); 
+
+    // dot
+    display.fillCircle(display.width() - 22, 28, 3, RGB888_TO_RGB565(0, 255, 0));
+
+    // 1st ring
+    display.drawFastVLine(display.width() - 22, 18, 3, RGB888_TO_RGB565(0, 255, 0));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, RGB888_TO_RGB565(0, 255, 0));
+    }
+    display.endWrite();
+
+    // 2nd ring
+    display.drawFastVLine(display.width() - 22, 12, 3, RGB888_TO_RGB565(0, 255, 0));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, RGB888_TO_RGB565(0, 255, 0));
+    }
+    display.endWrite();
+
+    // 3rd ring
+    display.drawFastVLine(display.width() - 22, 6, 3, RGB888_TO_RGB565(0, 255, 0));
+    display.startWrite();
+    for(uint8_t i = 0; i < 3; i++)
+    {
+        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, RGB888_TO_RGB565(0, 255, 0));
+    }
+    display.endWrite();
+
+    // remove excessive parts of rings
+    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, RGB888_TO_RGB565(0, 0, 0));
+    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, RGB888_TO_RGB565(0, 0, 0));
+}
+
+void updateWifiSignal(WIFI_SIGNAL wifiSignal)
+{
+    switch(wifiSignal)
+    {
+        case WIFI_SIGNAL_DISCONNECTED:
+            drawWifiSignalDisconnected();
+            break;
+
+        case WIFI_SIGNAL_BAD:
+            drawWifiSignalBad();
+            break;
+        
+        case WIFI_SIGNAL_GOOD:
+            drawWifiSignalGood();
+            break;
+        
+        case WIFI_SIGNAL_EXCELLENT:
+            drawWifiSignalExcellent();
+            break;
+
+        default:
+            drawWifiSignalUndefined();
+            break;
+    }
 }
 
 void updateHour(uint8_t hour)
@@ -313,7 +497,7 @@ void updateDate(uint8_t day, uint8_t month, uint16_t year)
     display.print(year);        
 }
 
-void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t wifiSignal)
+void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, WIFI_SIGNAL wifiSignal)
 {
     static uint8_t prevHour = 255; 
     static uint8_t prevMinute = 255;
@@ -321,7 +505,7 @@ void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, 
     static uint8_t prevMonth = 255;
     static uint16_t prevYear = 9999;
     static float prevTemperature = 273.15;  
-    static uint8_t prevWifiSignal = 255;
+    static WIFI_SIGNAL prevWifiSignal = WIFI_SIGNAL_NONE;
     static bool doubledotVisible = false;
 
     CONSOLE_CRLF("\r\nDISPLAY: MAIN UPDATED")

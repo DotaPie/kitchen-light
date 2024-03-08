@@ -4,6 +4,7 @@
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ST7789.h> // Hardware-specific library for ST7789
 #include <FastLED.h>
+#include "utilities.h"
 
 enum MOVEMENT_DIRECTION {DIRECTION_LEFT, DIRECTION_RIGHT};
 
@@ -23,7 +24,7 @@ void updateDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColor
 void loadDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t previousColorTemperatureIndex);
 void updateDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t previousColorTemperatureIndex);
 
-void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t wifiSingal);
+void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, WIFI_SIGNAL wifiSingal);
 void clearDisplay();
 
 #endif

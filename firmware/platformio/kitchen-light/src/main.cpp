@@ -31,6 +31,8 @@ CRGB LED_stripArray[LED_STRIP_LED_COUNT];
 RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 RotaryEncoder encoder_2 = RotaryEncoder(RE_2_IN1_PIN, RE_2_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 
+WIFI_SIGNAL currentWifiSignal;
+
 void loadPreferences()
 {
     bool firstTimeRun = false;
@@ -184,10 +186,15 @@ void loadDefaultValues()
     CONSOLE("\r\nLoading default values: ")
     state = STATE_MAIN;
     previousState = STATE_NONE;
+
     previousSwitch_1 = digitalRead(SWITCH_1_PIN);
     previousSwitch_2 = digitalRead(SWITCH_2_PIN);
+
     previous_encoder_1_position = 0;
     previous_encoder_2_position = 0;
+
+    currentWifiSignal = WIFI_SIGNAL_DISCONNECTED;
+
     CONSOLE_CRLF("OK")
 }
 
@@ -537,7 +544,7 @@ void loop()
 
             clearDisplay();
             mainScreenTimer = millis();
-            updateMainScreen(true, 88, 88, 88, 4, 8888, 88.88, 3);   
+            updateMainScreen(true, 88, 88, 88, 4, 8888, 88.88, currentWifiSignal);   
         }
         else if(state == STATE_BRIGHTNESS)
         {
@@ -583,6 +590,6 @@ void loop()
     if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE_MAIN)
     {
         mainScreenTimer = millis();
-        updateMainScreen(false, 88, 88, 88, 4, 8888, 88.88, 3);
+        updateMainScreen(false, 88, 88, 88, 4, 8888, 88.88, currentWifiSignal);
     }
 }

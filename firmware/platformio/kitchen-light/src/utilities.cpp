@@ -17,6 +17,7 @@ const char* monthNames[] = {"NONE",
 
 const char* stateString[] = {"NONE", "MAIN", "BRIGHTNESS", "COLOR"};
 const char* CPT_String[] = {"NONE", "COLOR_TEMPERATURE", "COLOR_HUE"};
+const char* wifiSignalString[] = {"WIFI_SIGNAL_NONE", "WIFI_SIGNAL_DISCONNECTED", "WIFI_SIGNAL_BAD", "WIFI_SIGNAL_GOOD", "WIFI_SIGNAL_EXCELLENT"};
 
 /* First value: KELVIN2RGB_LOOKUP_TABLE_MIN_VALUE
  * Last value: KELVIN2RGB_LOOKUP_TABLE_MAX_VALUE 
