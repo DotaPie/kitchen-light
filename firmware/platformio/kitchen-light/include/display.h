@@ -7,7 +7,9 @@
 
 enum MOVEMENT_DIRECTION {DIRECTION_LEFT, DIRECTION_RIGHT};
 
-extern Adafruit_ST7789 display;
+void setupDisplay();
+
+CRGB calculateColorTemperatureFromPickerPosition(uint16_t pickerPosition);
 
 CRGB calculateColorHueFromPickerPosition(uint16_t pickerPosition);
 uint16_t calculatePickerPositionFromColorHue(CRGB color);
@@ -17,6 +19,9 @@ void updateDisplayBrightness(uint8_t brightness);
 
 void loadDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColorHueIndex);
 void updateDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColorHueIndex);
+
+void loadDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t previousColorTemperatureIndex);
+void updateDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t previousColorTemperatureIndex);
 
 void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t wifiSingal);
 void clearDisplay();

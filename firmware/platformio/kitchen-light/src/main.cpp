@@ -7,30 +7,27 @@
 #include "conf.h"
 #include "macros.h"
 #include "display.h"
+#include "utilities.h"
 
 // libs
 #include <RotaryEncoder.h>
 #include <FastLED.h>
 
-// enums
-enum STATE {STATE_NONE, STATE_MAIN, STATE_BRIGHTNESS, STATE_COLOR};
-enum COLOR_PICKER_TYPE {CPT_NONE, CPT_COLOR_TEMPERATURE, CPT_COLOR_HUE};
-
-// globals
+// main.cpp globals
 STATE state, previousState;
 
 Preferences preferences;
+
 COLOR_PICKER_TYPE current_CPT, previous_CPT;
 uint16_t currentColorHueIndex, previousColorHueIndex;
+uint16_t currentColorTemperatureIndex, previousColorTemperatureIndex;
 uint8_t currentBrightness, previousBrightness;
 
 uint8_t previousSwitch_1, previousSwitch_2;
 long previous_encoder_1_position, previous_encoder_2_position;
 
-const char* stateString[] = {"NONE", "MAIN", "BRIGHTNESS", "COLOR"};
-const char* CPT_String[] = {"NONE", "COLOR_TEMPERATURE", "COLOR_HUE"};
-
 CRGB LED_stripArray[LED_STRIP_LED_COUNT];
+
 RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 RotaryEncoder encoder_2 = RotaryEncoder(RE_2_IN1_PIN, RE_2_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 
@@ -47,6 +44,7 @@ void loadPreferences()
         preferences.putUInt("firstRun", DEFAULT_ID);
         preferences.putUChar("CPT", (uint8_t)CPT_COLOR_TEMPERATURE);
         preferences.putUInt("color-hue-index", 0);
+        preferences.putUInt("color-temperature-index", 0);
         preferences.putUChar("brightness", DEFAULT_BRIGHTNESS);
     }
 
@@ -54,6 +52,8 @@ void loadPreferences()
     previous_CPT = current_CPT;
     currentColorHueIndex = preferences.getUInt("color-hue-index"); 
     previousColorHueIndex = currentColorHueIndex;
+    currentColorTemperatureIndex = preferences.getUInt("color-temperature-index"); 
+    previousColorTemperatureIndex = currentColorTemperatureIndex;
     currentBrightness = preferences.getUChar("brightness", DEFAULT_BRIGHTNESS);
     previousBrightness = currentBrightness;    
     
@@ -67,6 +67,9 @@ void loadPreferences()
 
     CONSOLE("  |-- current color hue index: ") 
     CONSOLE_CRLF(currentColorHueIndex);
+
+    CONSOLE("  |-- current color temperature index: ") 
+    CONSOLE_CRLF(currentColorTemperatureIndex);
 }
 
 void update_LED_strip()
@@ -76,21 +79,26 @@ void update_LED_strip()
         LED_stripArray[i] = CRGB(0, 0, 0);    
     }
 
-    // zone 1
+    // zone 1 + 3
     if(previousSwitch_1 == LOW)
     {
-        for(uint16_t i = 0; i < ZONE_1_LED_COUNT; i++)
+        for(uint16_t i = ZONE_1_LED_START_INDEX; i <= ZONE_1_LED_END_INDEX; i++)
         {
-            LED_stripArray[i] = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : CRGB(0, 0, 0); // TODO    
+            LED_stripArray[i] = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);     
+        }
+
+        for(uint16_t i = ZONE_3_LED_START_INDEX; i <= ZONE_3_LED_END_INDEX; i++)
+        {
+            LED_stripArray[i] = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);    
         }
     }
 
     // zone 2
     if(previousSwitch_2 == LOW)
     {
-        for(uint16_t i = ZONE_1_LED_COUNT; i < LED_STRIP_LED_COUNT; i++)
+        for(uint16_t i = ZONE_2_LED_START_INDEX; i <= ZONE_2_LED_END_INDEX; i++)
         {
-            LED_stripArray[i] = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : CRGB(0, 0, 0); // TODO     
+            LED_stripArray[i] = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);     
         }
     }
 
@@ -120,9 +128,13 @@ void setup_LED_strip()
 {
     CONSOLE("\r\nLED strip: ")
     FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, LED_STRIP_LED_COUNT).setCorrection(TypicalLEDStrip);
+
+    #ifndef DEVELOPMENT   
     FastLED.setBrightness(DEFAULT_BRIGHTNESS);
-    
     LED_strip_load_animation();
+    #endif
+
+    FastLED.setBrightness(currentBrightness);
     update_LED_strip();
 
     CONSOLE_CRLF("OK")
@@ -165,22 +177,6 @@ void setupSwitches()
 
     CONSOLE("  |-- Switch state #2: ") 
     CONSOLE_CRLF(digitalRead(SWITCH_2_PIN) == LOW ? "ON" : "OFF")
-}
-
-void setupDisplay()
-{
-    CONSOLE("\r\nDisplay: ")
-    display.init(DISPLAY_WIDTH, DISPLAY_HEIGHT);       
-    display.setRotation(DISPLAY_ROTATION_DEGREE/90);
-    display.invertDisplay(false); 
-    display.fillScreen(ST77XX_BLACK);
-    display.setCursor(4, 4);
-    display.setTextColor(ST77XX_WHITE);
-    display.setTextSize(2);
-    display.setTextWrap(true);
-    display.print("Booting ...");
-
-    CONSOLE_CRLF("OK") 
 }
 
 void loadDefaultValues()
@@ -265,11 +261,11 @@ void updateColorHue(int direction)
 
     if(tempColorHueIndex < 0)
     {
-        currentColorHueIndex = 0;
+        currentColorHueIndex = PICKER_WIDTH - 1;
     }
     else if(tempColorHueIndex >= PICKER_WIDTH)
     {
-        currentColorHueIndex = PICKER_WIDTH - 1;
+        currentColorHueIndex = 0;
     }
     else 
     {
@@ -310,6 +306,58 @@ void updateColorHue(int direction)
     }
      
     previousColorHueIndex = currentColorHueIndex;
+}
+
+void updateColorTemperature(int direction)
+{   
+    int32_t tempColorTemperatureIndex = currentColorTemperatureIndex + (direction * COLOR_TEMPERATURE_INDEX_STEP);
+
+    if(tempColorTemperatureIndex < 0)
+    {
+        currentColorTemperatureIndex = 0;
+    }
+    else if(tempColorTemperatureIndex >= PICKER_WIDTH)
+    {
+        currentColorTemperatureIndex = PICKER_WIDTH - 1;
+    }
+    else 
+    {
+        currentColorTemperatureIndex = (uint16_t)tempColorTemperatureIndex;     
+    }
+
+    CRGB currentColor = calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);
+    CRGB previousColor = calculateColorTemperatureFromPickerPosition(previousColorTemperatureIndex);
+    
+    CONSOLE_CRLF("\r\nCOLOR TEMPERATURE UPDATE")
+    CONSOLE("  |-- previous picker value: ")
+    CONSOLE_CRLF(previousColorTemperatureIndex)
+    CONSOLE("  |-- previous color value: ")
+    CONSOLE("[R: ")
+    CONSOLE(previousColor.r)
+    CONSOLE("| G: ")
+    CONSOLE(previousColor.g)
+    CONSOLE("| B: ")
+    CONSOLE(previousColor.b)
+    CONSOLE_CRLF("]")
+    CONSOLE("  |-- new picker value: ")
+    CONSOLE_CRLF(currentColorTemperatureIndex)
+    CONSOLE("  |-- new color value: ")
+    CONSOLE("[R: ")
+    CONSOLE(currentColor.r)
+    CONSOLE("| G: ")
+    CONSOLE(currentColor.g)
+    CONSOLE("| B: ")
+    CONSOLE(currentColor.b)
+    CONSOLE_CRLF("]")
+
+    update_LED_strip();
+
+    if(previousColorTemperatureIndex != currentColorTemperatureIndex)
+    {
+        updateDisplayColorTemperature(currentColorTemperatureIndex, previousColorTemperatureIndex); 
+    }
+     
+    previousColorTemperatureIndex = currentColorTemperatureIndex;
 }
 
 void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
@@ -370,7 +418,7 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
         {
             if(current_CPT == CPT_COLOR_TEMPERATURE)
             {
-                // updateColorTemperature();
+                updateColorTemperature(encoder_2_direction);
             }
             else if(current_CPT == CPT_COLOR_HUE)
             {
@@ -388,7 +436,7 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
         {
             // unused - reserved
         }
-        else if(state == STATE_MAIN)
+        else if(state == STATE_MAIN || state == STATE_COLOR)
         {
             state = STATE_BRIGHTNESS;
         }      
@@ -405,7 +453,7 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
             CONSOLE("\r\nCOLOR PICKER TYPE CHANGE: ")  
             CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT])  
         }  
-        else if(state == STATE_MAIN)
+        else if(state == STATE_MAIN || state == STATE_BRIGHTNESS)
         {
             state = STATE_COLOR;
         }   
@@ -422,6 +470,11 @@ void updatePreferences()
     if(currentColorHueIndex != preferences.getUInt("color-hue-index"))
     {
         preferences.putUInt("color-hue-index", currentColorHueIndex);
+    }
+
+    if(currentColorTemperatureIndex != preferences.getUInt("color-temperature-index"))
+    {
+        preferences.putUInt("color-temperature-index", currentColorTemperatureIndex);
     }
 
     if(currentBrightness != preferences.getUChar("brightness"))
@@ -497,7 +550,7 @@ void loop()
 
             if(current_CPT == CPT_COLOR_TEMPERATURE)
             {
-                // TODO: draw color temperature bar 
+                loadDisplayColorTemperature(currentColorTemperatureIndex, previousColorTemperatureIndex);
             }
             else if(current_CPT == CPT_COLOR_HUE)
             {
@@ -516,11 +569,13 @@ void loop()
 
         if(current_CPT == CPT_COLOR_TEMPERATURE)
         {
-            // TODO: draw color temperature bar 
+            loadDisplayColorTemperature(currentColorTemperatureIndex, previousColorTemperatureIndex);
+            updateColorTemperature(0); // force color change without direction from encoder
         }
         else if(current_CPT == CPT_COLOR_HUE)
         {
-            loadDisplayColorHue(currentColorHueIndex, previousColorHueIndex);  
+            loadDisplayColorHue(currentColorHueIndex, previousColorHueIndex);
+            updateColorHue(0); // force color change without direction from encoder  
         }                
     }
 

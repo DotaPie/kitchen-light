@@ -5,10 +5,46 @@
 #include "pinout.h"
 #include "macros.h"
 #include "conf.h"
+#include "utilities.h"
 #include "console.h"
 #include <FastLED.h>
 
 Adafruit_ST7789 display = Adafruit_ST7789(DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_RST_PIN);
+
+void setupDisplay()
+{
+    CONSOLE("\r\nDisplay: ")
+    display.init(DISPLAY_WIDTH, DISPLAY_HEIGHT);       
+    display.setRotation(DISPLAY_ROTATION_DEGREE/90);
+    display.invertDisplay(false); 
+    display.fillScreen(ST77XX_BLACK);
+    display.setCursor(4, 4);
+    display.setTextColor(ST77XX_WHITE);
+    display.setTextSize(2);
+    display.setTextWrap(true);
+    display.print("Booting ...");
+
+    CONSOLE_CRLF("OK") 
+}
+
+void loadDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t previousColorTemperatureIndex)
+{
+    for(uint16_t i = 0; i < PICKER_WIDTH; i++)
+    {
+        CRGB color = kelvin2RGB_lookupTable[map(i, 0, PICKER_WIDTH - 1, 0, (KELVIN2RGB_LOOKUP_TABLE_MAX_VALUE - KELVIN2RGB_LOOKUP_TABLE_MIN_VALUE) / KELVIN2RGB_LOOKUP_TABLE_STEP)];
+        display.drawFastVLine(PICKER_OFFSET_X + i, PICKER_OFFSET_Y, PICKER_HEIGHT, RGB888_TO_RGB565(color.r, color.g, color.b));    
+    }
+
+    display.setCursor(PICKER_OFFSET_X, PICKER_OFFSET_Y - 30);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 3);
+    display.setTextWrap(false);
+    display.print("COLOR TEMPERATURE");
+
+    CONSOLE_CRLF("\r\nDISPLAY: COLOR TEMPERATURE LOADED")
+
+    updateDisplayColorTemperature(currentColorTemperatureIndex, previousColorTemperatureIndex);
+}
 
 void loadDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColorHueIndex)
 {
@@ -72,6 +108,13 @@ void loadDisplayBrightness(uint8_t brightness)
     updateDisplayBrightness(brightness);
 }
 
+CRGB calculateColorTemperatureFromPickerPosition(uint16_t pickerPosition)
+{
+    return kelvin2RGB_lookupTable[map(pickerPosition, 0, PICKER_WIDTH - 1, 0, (KELVIN2RGB_LOOKUP_TABLE_MAX_VALUE - KELVIN2RGB_LOOKUP_TABLE_MIN_VALUE) / KELVIN2RGB_LOOKUP_TABLE_STEP)];    
+}
+
+/* Unused by prepared if needed.
+ */
 uint16_t calculatePickerPositionFromColorHue(CRGB color)
 {
     // R -> G
@@ -174,6 +217,14 @@ void updateDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColor
     display.fillTriangle(PICKER_OFFSET_X + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
    
     CONSOLE_CRLF("\r\nDISPLAY: COLOR HUE UPDATED")
+}
+
+void updateDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t previousColorTemperatureIndex)
+{
+    display.fillTriangle(PICKER_OFFSET_X + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
+    display.fillTriangle(PICKER_OFFSET_X + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
+   
+    CONSOLE_CRLF("\r\nDISPLAY: COLOR TEMPERATURE UPDATED")
 }
 
 void updateDisplayBrightness(uint8_t brightness)
