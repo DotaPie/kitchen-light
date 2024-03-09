@@ -487,13 +487,12 @@ void updateMinute(uint8_t minute)
 
 void updateTemperature(float temperature)
 {
-    display.fillRect(0, display.height() - 32, display.width() * 1/3, 32, RGB888_TO_RGB565(0, 0, 0));
-    display.setCursor(6, display.height() - 26);
+    display.fillRect(0, display.height() - 39, display.width() * 1/3 - 27, 39, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(8, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
     display.print((int32_t)round(temperature));
-    display.print(" C");
 }
 
 void updateDate(uint8_t day, uint8_t month, uint16_t year)
@@ -512,24 +511,58 @@ void updateDate(uint8_t day, uint8_t month, uint16_t year)
 
 void updateHumidity(uint8_t humidity)
 {
-    display.fillRect(display.width() * 1/3, display.height() - 32, display.width() * 1/3, 32, RGB888_TO_RGB565(0, 0, 0));
-    display.setCursor(display.width() * 1/3 + 6, display.height() - 26);
+    display.fillRect(display.width() * 1/3 + 1, display.height() - 39, display.width() * 1/3 - 13, 39, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(display.width() * 1/3 + 8, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
-    display.print(humidity);
-    display.print("%");   
+    display.print(humidity); 
 }
 
 void updateWindSpeed(float windGust)
 {
-    display.fillRect(display.width() * 2/3, display.height() - 32, display.width() * 1/3, 32, RGB888_TO_RGB565(0, 0, 0));
-    display.setCursor(display.width() * 2/3 + 6, display.height() - 26);
+    display.fillRect(display.width() * 2/3 + 1, display.height() - 39, display.width() * 1/3 - 39, 39, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(display.width() * 2/3 + 8, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
     display.print((uint32_t)round(windGust));
-    display.print("m/s");   
+}
+
+void drawFixedParts()
+{
+    display.drawFastHLine(0, display.height() - 40, display.width(), RGB888_TO_RGB565(255, 255, 255));
+    display.drawFastHLine(0, 40, display.width(), RGB888_TO_RGB565(255, 255, 255));
+    display.drawFastVLine(display.width() * 1/3, display.height() - 40, 40, RGB888_TO_RGB565(255, 255, 255));
+    display.drawFastVLine(display.width() * 2/3, display.height() - 40, 40, RGB888_TO_RGB565(255, 255, 255));
+
+    display.setCursor(display.width() * 1/3 - 13, display.height() - 36);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 2);
+    display.setTextWrap(false);
+    display.print("C");
+    display.fillCircle(display.width() * 1/3 - 20, display.height() - 32, 2, RGB888_TO_RGB565(255, 255, 255));
+    display.fillCircle(display.width() * 1/3 - 20, display.height() - 32, 1, RGB888_TO_RGB565(0, 0, 0));
+
+    display.setCursor(display.width() * 2/3 - 13, display.height() - 36);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 2);
+    display.setTextWrap(false);
+    display.print("%");
+
+    display.setCursor(display.width() - 13, display.height() - 38);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 2);
+    display.setTextWrap(false);
+    display.print("m");
+
+    display.drawFastHLine(display.width() - 13, display.height() - 22, 13, RGB888_TO_RGB565(255, 255, 255));
+
+    display.setCursor(display.width() - 13, display.height() - 22);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 2);
+    display.setTextWrap(false);
+    display.print("s");
 }
 
 void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WIFI_SIGNAL wifiSignal)
@@ -546,6 +579,11 @@ void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, 
     static bool doubledotVisible = false;
 
     CONSOLE_CRLF("\r\nDISPLAY: MAIN UPDATED")
+
+    if(forceAll)
+    {
+        drawFixedParts();
+    }
 
     if(hour != prevHour || forceAll)
     {
