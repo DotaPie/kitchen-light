@@ -446,6 +446,12 @@ void updateHour(uint8_t hour)
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(12, 17);
     display.setTextWrap(false);
+
+    if(hour < 10)
+    {
+        display.print('0');
+    }
+
     display.print(hour);    
 }
 
@@ -470,6 +476,12 @@ void updateMinute(uint8_t minute)
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(12, 17);
     display.setTextWrap(false);
+
+    if(minute < 10)
+    {
+        display.print('0');
+    }
+
     display.print(minute);
 }
 
