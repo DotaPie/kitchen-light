@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 // project includes
 #include "console.h"
@@ -38,6 +40,14 @@ char wifi_pwd[WIFI_PWD_MAX_LENGTH + 1] = "";
 int32_t GMT_offset_hours;
 int32_t daylight_offset_hours;
 
+char city[CITY_MAX_LENGTH + 1] = "";
+char countryCode[COUNTRY_CODE_MAX_LENGTH + 1] = "";
+char openWeatherAPI_key[API_KEY_MAX_LENGTH + 1] = "";
+
+float temperature_C;
+uint8_t humidity;
+float windSpeed;
+
 void loadPreferences()
 {
     bool firstTimeRun = false;
@@ -53,10 +63,13 @@ void loadPreferences()
         preferences.putUInt("color-hue", 0);
         preferences.putUInt("color-t", 0);
         preferences.putUChar("brightness", DEFAULT_BRIGHTNESS);
-        preferences.putBytes("wifi_ssid", "xxxx", WIFI_SSID_MAX_LENGTH + 1);
-        preferences.putBytes("wifi_pwd", "xxxx", WIFI_PWD_MAX_LENGTH + 1);
+        preferences.putBytes("wifi_ssid", "****", WIFI_SSID_MAX_LENGTH + 1);
+        preferences.putBytes("wifi_pwd", "****", WIFI_PWD_MAX_LENGTH + 1);
         preferences.putInt("GMT_offset", DEFAULT_GMT_OFFSET_HOURS); // hours
         preferences.putInt("daylight", DEFAULT_DAYLIGHT_OFFSET_HOURS); // hours
+        preferences.putBytes("city", "****", CITY_MAX_LENGTH + 1);
+        preferences.putBytes("country-c", "**", COUNTRY_CODE_MAX_LENGTH + 1);
+        preferences.putBytes("api-key", "****", API_KEY_MAX_LENGTH + 1);
     }
 
     current_CPT = (COLOR_PICKER_TYPE)preferences.getUChar("CPT", (uint8_t)CPT_NONE);  
@@ -72,6 +85,10 @@ void loadPreferences()
     preferences.getBytes("wifi_pwd", wifi_pwd, WIFI_PWD_MAX_LENGTH + 1);
     GMT_offset_hours = preferences.getInt("GMT_offset", DEFAULT_GMT_OFFSET_HOURS); // hours
     daylight_offset_hours = preferences.getBool("daylight", DEFAULT_DAYLIGHT_OFFSET_HOURS);
+
+    preferences.getBytes("city", city, CITY_MAX_LENGTH + 1);
+    preferences.getBytes("country-c", countryCode, COUNTRY_CODE_MAX_LENGTH + 1);
+    preferences.getBytes("api-key", openWeatherAPI_key, API_KEY_MAX_LENGTH + 1);
     
     CONSOLE_CRLF("OK")
 
@@ -515,6 +532,8 @@ void updatePreferences()
 
 void updateWifiSignal(int8_t rssi)
 {
+    CONSOLE("\r\nUPDATING WIFI SIGNAL: ")
+
     if(rssi < -75)
     {
         currentWifiSignal = WIFI_SIGNAL_BAD;
@@ -527,6 +546,12 @@ void updateWifiSignal(int8_t rssi)
     {
         currentWifiSignal = WIFI_SIGNAL_EXCELLENT;
     } 
+
+    CONSOLE_CRLF("OK")
+    CONSOLE("  |-- RSSI: ")
+    CONSOLE_CRLF(rssi)
+    CONSOLE("  |-- Wi-Fi signal: ")
+    CONSOLE_CRLF(wifiSignalString[(uint8_t)currentWifiSignal])
 }
 
 void setupWifi()
@@ -561,6 +586,10 @@ void syncDateTime()
 {
     CONSOLE("\r\nSYNCING LOCAL TIME: ")
     configTime(GMT_offset_hours * SECONDS_IN_HOUR, daylight_offset_hours * SECONDS_IN_HOUR, NTP_server_domain);
+
+    struct tm timeInfo;
+    while(!getLocalTime(&timeInfo)); // sometimes this might take while
+
     CONSOLE_CRLF("OK")
 }
 
@@ -577,11 +606,82 @@ void updateLocalTime(tm *timeInfo)
     CONSOLE_CRLF("OK")
 }
 
+void httpGETRequest(char* serverName, char *payload) {
+    WiFiClient client;
+    HTTPClient http;
+
+    // Your Domain name with URL path or IP address with path
+    http.begin(client, serverName);
+
+    // Send HTTP POST request
+    int httpResponseCode = http.GET();
+
+    if (httpResponseCode > 0) 
+    {
+        http.getString().toCharArray(payload, MAX_HTTP_PAYLOAD_SIZE + 1);
+    }
+    
+    http.end();
+}
+
+void updateWeather()
+{
+    char payloadJSON[MAX_HTTP_PAYLOAD_SIZE + 1] = "";
+    char serverURL[MAX_SERVER_URL_SIZE + 1] = "";  
+    JsonDocument doc;
+
+    sprintf(serverURL, openWeatherServerURL_formatable, city, countryCode, openWeatherAPI_key);
+
+    for(uint8_t i = 1; i <= NUMBER_OF_RETRIES_FOR_WEATHER; i++)
+    {
+        httpGETRequest(serverURL, payloadJSON);
+
+        CONSOLE("\r\nJSON RESPONSE: ");
+        CONSOLE_CRLF(payloadJSON)
+
+        CONSOLE("\r\nJSON DERESIALIZATON: ")
+        DeserializationError error = deserializeJson(doc, payloadJSON);
+
+        if(error)
+        {
+            CONSOLE("ERROR");
+
+            if(i == NUMBER_OF_RETRIES_FOR_WEATHER)
+            {
+                CONSOLE_CRLF();
+                return;
+            }
+            else
+            {
+                CONSOLE_CRLF(" (retrying)");
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
+    
+    CONSOLE_CRLF("OK");
+
+    temperature_C = doc["main"]["temp"].as<float>() - OPENWEATHER_TEMPERATURE_OFFSET;
+    humidity = doc["main"]["humidity"].as<int8_t>();
+    windSpeed = doc["wind"]["speed"].as<float>();
+
+    CONSOLE_CRLF("\r\nWEATHER UPDATED");
+    CONSOLE("  |-- temperature: ");
+    CONSOLE_CRLF(temperature_C);
+    CONSOLE("  |-- humidity: ");
+    CONSOLE_CRLF(humidity);
+    CONSOLE("  |-- wind speed: ");
+    CONSOLE_CRLF(windSpeed);
+}
+
 void setup()
 {
     delay(DELAY_BEFORE_STARTUP_MS);
     CONSOLE_SERIAL.begin(CONSOLE_BAUDRATE);
-    CONSOLE_CRLF("~~~ SETUP ~~~")
+    CONSOLE_CRLF("\r\n~~~ SETUP ~~~")
 
     loadDefaultValues();
     loadPreferences();
@@ -594,14 +694,17 @@ void setup()
     setupWifi(); // we could do this before loading animation of LED strip, but on single core CPUs this could cause issues
     syncDateTime();
 
+    updateWeather();
+
     state = STATE_MAIN;
 
-    CONSOLE_CRLF("~~~ LOOP ~~~")
+    CONSOLE_CRLF("\r\n~~~ LOOP ~~~")
 }
 
 void loop() 
 {
     static uint32_t mainScreenTimer = 0;
+    static uint32_t weatherTimer = millis();
     static uint32_t rotary_encoder_timer = 0;
     struct tm timeInfo;
 
@@ -638,7 +741,7 @@ void loop()
             clearDisplay();
             
             mainScreenTimer = millis();
-            updateMainScreen(true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, 12.34, currentWifiSignal);   
+            updateMainScreen(true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, currentWifiSignal);   
         }
         else if(state == STATE_BRIGHTNESS)
         {
@@ -683,9 +786,17 @@ void loop()
     // update screen once a second
     if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE_MAIN)
     {
+        mainScreenTimer = millis();
         updateLocalTime(&timeInfo);
         updateWifiSignal(WiFi.RSSI());
-        mainScreenTimer = millis();
-        updateMainScreen(false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, 12.34, currentWifiSignal); 
+        
+        updateMainScreen(false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, currentWifiSignal); 
+    }
+
+    // update weather
+    if(millis() - weatherTimer > UPDATE_WEATHER_MS && state == STATE_MAIN)
+    {
+        weatherTimer = millis();
+        updateWeather();
     }
 }

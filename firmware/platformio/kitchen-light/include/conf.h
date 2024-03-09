@@ -53,7 +53,7 @@
 #define COLOR_TEMPERATURE_INDEX_STEP 4 // 8 color picker change for 1 encoder step
 
 // preferences
-#define DEFAULT_ID 106 // change this to other number if you want to force default configuration after next upload
+#define DEFAULT_ID 108 // change this to other number if you want to force default configuration after next upload
 
 // wifi
 #define WIFI_SSID_MAX_LENGTH 128
@@ -64,5 +64,15 @@
 #define DEFAULT_DAYLIGHT_OFFSET_HOURS 0
 #define SECONDS_IN_HOUR 3600
 #define YEAR_OFFSET 1900
+
+// weather
+#define CITY_MAX_LENGTH 64
+#define COUNTRY_CODE_MAX_LENGTH 3
+#define API_KEY_MAX_LENGTH 128
+#define UPDATE_WEATHER_MS 600000
+#define MAX_HTTP_PAYLOAD_SIZE 4096
+#define MAX_SERVER_URL_SIZE 512
+#define OPENWEATHER_TEMPERATURE_OFFSET 273.15
+#define NUMBER_OF_RETRIES_FOR_WEATHER 3
 
 #endif

@@ -8,6 +8,7 @@
 #include "utilities.h"
 #include "console.h"
 #include <FastLED.h>
+#include <math.h>
 
 Adafruit_ST7789 display = Adafruit_ST7789(DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_RST_PIN);
 
@@ -474,12 +475,12 @@ void updateMinute(uint8_t minute)
 
 void updateTemperature(float temperature)
 {
-    display.fillRect(0, display.height() - 32, display.width() / 2, display.height(), RGB888_TO_RGB565(0, 0, 0));
+    display.fillRect(0, display.height() - 32, display.width() * 1/3, 32, RGB888_TO_RGB565(0, 0, 0));
     display.setCursor(6, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
-    display.print((int32_t)temperature);
+    display.print((int32_t)round(temperature));
     display.print(" C");
 }
 
@@ -497,7 +498,29 @@ void updateDate(uint8_t day, uint8_t month, uint16_t year)
     display.print(year);        
 }
 
-void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, WIFI_SIGNAL wifiSignal)
+void updateHumidity(uint8_t humidity)
+{
+    display.fillRect(display.width() * 1/3, display.height() - 32, display.width() * 1/3, 32, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(display.width() * 1/3 + 6, display.height() - 26);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(3, 3);
+    display.setTextWrap(false);
+    display.print(humidity);
+    display.print("%");   
+}
+
+void updateWindSpeed(float windGust)
+{
+    display.fillRect(display.width() * 2/3, display.height() - 32, display.width() * 1/3, 32, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(display.width() * 2/3 + 6, display.height() - 26);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(3, 3);
+    display.setTextWrap(false);
+    display.print((uint32_t)round(windGust));
+    display.print("m/s");   
+}
+
+void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WIFI_SIGNAL wifiSignal)
 {
     static uint8_t prevHour = 255; 
     static uint8_t prevMinute = 255;
@@ -505,6 +528,8 @@ void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, 
     static uint8_t prevMonth = 255;
     static uint16_t prevYear = 9999;
     static float prevTemperature = 273.15;  
+    static uint8_t prevHumidity = 255;
+    static float prevWindSpeed = -1.0;
     static WIFI_SIGNAL prevWifiSignal = WIFI_SIGNAL_NONE;
     static bool doubledotVisible = false;
 
@@ -540,6 +565,20 @@ void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, 
         updateTemperature(temperature);
         prevTemperature = temperature;
         CONSOLE_CRLF("  |-- TEMPERATURE UPDATED")
+    }
+
+    if(humidity != prevHumidity || forceAll)
+    {
+        updateHumidity(humidity);
+        prevHumidity = humidity;
+        CONSOLE_CRLF("  |-- HUMIDITY UPDATED")
+    }
+
+    if(windSpeed != prevWindSpeed|| forceAll)
+    {
+        updateWindSpeed(windSpeed);
+        prevWindSpeed = windSpeed;
+        CONSOLE_CRLF("  |-- WIND SPEED UPDATED")
     }
 
     if(day != prevDay || month != prevMonth || year != prevYear || forceAll)
