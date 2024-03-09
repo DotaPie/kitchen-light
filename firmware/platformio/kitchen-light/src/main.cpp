@@ -38,7 +38,7 @@ WIFI_SIGNAL currentWifiSignal;
 char wifi_ssid[WIFI_SSID_MAX_LENGTH + 1] = "";
 char wifi_pwd[WIFI_PWD_MAX_LENGTH + 1] = "";
 int32_t GMT_offset_hours;
-int32_t daylight_offset_hours;
+bool daylight_enabled;
 
 char city[CITY_MAX_LENGTH + 1] = "";
 char countryCode[COUNTRY_CODE_MAX_LENGTH + 1] = "";
@@ -66,7 +66,7 @@ void loadPreferences()
         preferences.putBytes("wifi_ssid", "****", WIFI_SSID_MAX_LENGTH + 1);
         preferences.putBytes("wifi_pwd", "****", WIFI_PWD_MAX_LENGTH + 1);
         preferences.putInt("GMT_offset", DEFAULT_GMT_OFFSET_HOURS); // hours
-        preferences.putInt("daylight", DEFAULT_DAYLIGHT_OFFSET_HOURS); // hours
+        preferences.putBool("DL-enabled", true); // hours
         preferences.putBytes("city", "****", CITY_MAX_LENGTH + 1);
         preferences.putBytes("country-c", "**", COUNTRY_CODE_MAX_LENGTH + 1);
         preferences.putBytes("api-key", "****", API_KEY_MAX_LENGTH + 1);
@@ -84,7 +84,7 @@ void loadPreferences()
     preferences.getBytes("wifi_ssid", wifi_ssid, WIFI_SSID_MAX_LENGTH + 1);
     preferences.getBytes("wifi_pwd", wifi_pwd, WIFI_PWD_MAX_LENGTH + 1);
     GMT_offset_hours = preferences.getInt("GMT_offset", DEFAULT_GMT_OFFSET_HOURS); // hours
-    daylight_offset_hours = preferences.getBool("daylight", DEFAULT_DAYLIGHT_OFFSET_HOURS);
+    daylight_enabled = preferences.getBool("DL-enabled", true);
 
     preferences.getBytes("city", city, CITY_MAX_LENGTH + 1);
     preferences.getBytes("country-c", countryCode, COUNTRY_CODE_MAX_LENGTH + 1);
@@ -582,10 +582,15 @@ void setupWifi()
     updateWifiSignal(rssi);
 }
 
+int8_t getDaylightOffsetHours()
+{
+    return 0; // TODO: verify against date and time
+}
+
 void syncDateTime()
 {
     CONSOLE("\r\nSYNCING LOCAL TIME: ")
-    configTime(GMT_offset_hours * SECONDS_IN_HOUR, daylight_offset_hours * SECONDS_IN_HOUR, NTP_server_domain);
+    configTime(GMT_offset_hours * SECONDS_IN_HOUR, daylight_enabled ? getDaylightOffsetHours() * SECONDS_IN_HOUR : 0, NTP_server_domain);
 
     struct tm timeInfo;
     while(!getLocalTime(&timeInfo)); // sometimes this might take while

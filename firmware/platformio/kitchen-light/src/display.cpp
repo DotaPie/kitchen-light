@@ -556,7 +556,7 @@ void drawFixedParts()
     display.setTextWrap(false);
     display.print("m");
 
-    display.drawFastHLine(display.width() - 13, display.height() - 22, 13, RGB888_TO_RGB565(255, 255, 255));
+    display.drawFastHLine(display.width() - 13, display.height() - 22, 11, RGB888_TO_RGB565(255, 255, 255));
 
     display.setCursor(display.width() - 13, display.height() - 22);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));

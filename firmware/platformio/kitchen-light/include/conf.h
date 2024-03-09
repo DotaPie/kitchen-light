@@ -53,7 +53,7 @@
 #define COLOR_TEMPERATURE_INDEX_STEP 4 // 8 color picker change for 1 encoder step
 
 // preferences
-#define DEFAULT_ID 108 // change this to other number if you want to force default configuration after next upload
+#define DEFAULT_ID 109 // change this to other number if you want to force default configuration after next upload
 
 // wifi
 #define WIFI_SSID_MAX_LENGTH 128
