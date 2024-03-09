@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Preferences.h>
+#include <WiFi.h>
 
 // project includes
 #include "console.h"
@@ -32,6 +33,10 @@ RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncode
 RotaryEncoder encoder_2 = RotaryEncoder(RE_2_IN1_PIN, RE_2_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 
 WIFI_SIGNAL currentWifiSignal;
+char wifi_ssid[WIFI_SSID_MAX_LENGTH + 1] = "";
+char wifi_pwd[WIFI_PWD_MAX_LENGTH + 1] = "";
+int32_t GMT_offset_hours;
+int32_t daylight_offset_hours;
 
 void loadPreferences()
 {
@@ -48,6 +53,10 @@ void loadPreferences()
         preferences.putUInt("color-hue", 0);
         preferences.putUInt("color-t", 0);
         preferences.putUChar("brightness", DEFAULT_BRIGHTNESS);
+        preferences.putBytes("wifi_ssid", "xxxx", WIFI_SSID_MAX_LENGTH + 1);
+        preferences.putBytes("wifi_pwd", "xxxx", WIFI_PWD_MAX_LENGTH + 1);
+        preferences.putInt("GMT_offset", DEFAULT_GMT_OFFSET_HOURS); // hours
+        preferences.putInt("daylight", DEFAULT_DAYLIGHT_OFFSET_HOURS); // hours
     }
 
     current_CPT = (COLOR_PICKER_TYPE)preferences.getUChar("CPT", (uint8_t)CPT_NONE);  
@@ -58,6 +67,11 @@ void loadPreferences()
     previousColorTemperatureIndex = currentColorTemperatureIndex;
     currentBrightness = preferences.getUChar("brightness", DEFAULT_BRIGHTNESS);
     previousBrightness = currentBrightness;    
+
+    preferences.getBytes("wifi_ssid", wifi_ssid, WIFI_SSID_MAX_LENGTH + 1);
+    preferences.getBytes("wifi_pwd", wifi_pwd, WIFI_PWD_MAX_LENGTH + 1);
+    GMT_offset_hours = preferences.getInt("GMT_offset", DEFAULT_GMT_OFFSET_HOURS); // hours
+    daylight_offset_hours = preferences.getBool("daylight", DEFAULT_DAYLIGHT_OFFSET_HOURS);
     
     CONSOLE_CRLF("OK")
 
@@ -68,10 +82,19 @@ void loadPreferences()
     CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT])
 
     CONSOLE("  |-- current color hue index: ") 
-    CONSOLE_CRLF(currentColorHueIndex);
+    CONSOLE_CRLF(currentColorHueIndex)
 
     CONSOLE("  |-- current color temperature index: ") 
-    CONSOLE_CRLF(currentColorTemperatureIndex);
+    CONSOLE_CRLF(currentColorTemperatureIndex)
+
+    CONSOLE("  |-- wifi ssid: ");
+    CONSOLE_CRLF(wifi_ssid)
+
+    CONSOLE("  |-- wifi password: ");
+    CONSOLE_CRLF(wifi_pwd)
+
+    CONSOLE("  |-- GMT offset: ")
+    CONSOLE_CRLF()
 }
 
 void update_LED_strip()
@@ -490,6 +513,70 @@ void updatePreferences()
     }
 }
 
+void updateWifiSignal(int8_t rssi)
+{
+    if(rssi < -75)
+    {
+        currentWifiSignal = WIFI_SIGNAL_BAD;
+    } 
+    else if(rssi >= -75 && rssi < -55) 
+    {
+        currentWifiSignal = WIFI_SIGNAL_GOOD;    
+    }
+    else if(rssi >= -55)
+    {
+        currentWifiSignal = WIFI_SIGNAL_EXCELLENT;
+    } 
+}
+
+void setupWifi()
+{
+    int8_t rssi;
+
+    WiFi.begin(wifi_ssid, wifi_pwd);
+
+    while(WiFi.status() != WL_CONNECTED)
+    {
+        CONSOLE("\r\nWi-Fi status: ")
+        CONSOLE_CRLF("CONNECTING")
+
+        delay(1000);
+    }
+
+    rssi = WiFi.RSSI();
+
+    CONSOLE("\r\nWi-Fi status: ")
+    CONSOLE_CRLF("CONNECTED")
+    CONSOLE("  |-- AP name: ")
+    CONSOLE_CRLF(WiFi.SSID())
+    CONSOLE("  |-- IP: ")
+    CONSOLE_CRLF(WiFi.localIP())
+    CONSOLE("  |-- RSSI: ")
+    CONSOLE_CRLF(rssi)
+
+    updateWifiSignal(rssi);
+}
+
+void syncDateTime()
+{
+    CONSOLE("\r\nSYNCING LOCAL TIME: ")
+    configTime(GMT_offset_hours * SECONDS_IN_HOUR, daylight_offset_hours * SECONDS_IN_HOUR, NTP_server_domain);
+    CONSOLE_CRLF("OK")
+}
+
+void updateLocalTime(tm *timeInfo)
+{
+    CONSOLE("\r\nUPDATING LOCAL TIME: ")
+
+    if(!getLocalTime(timeInfo))
+    {
+        CONSOLE_CRLF("ERROR")
+        return;
+    }
+
+    CONSOLE_CRLF("OK")
+}
+
 void setup()
 {
     delay(DELAY_BEFORE_STARTUP_MS);
@@ -504,6 +591,9 @@ void setup()
     setup_LED_strip();
     CONSOLE_CRLF()
 
+    setupWifi(); // we could do this before loading animation of LED strip, but on single core CPUs this could cause issues
+    syncDateTime();
+
     state = STATE_MAIN;
 
     CONSOLE_CRLF("~~~ LOOP ~~~")
@@ -513,6 +603,7 @@ void loop()
 {
     static uint32_t mainScreenTimer = 0;
     static uint32_t rotary_encoder_timer = 0;
+    struct tm timeInfo;
 
     // handle inputs
     checkSwitches();
@@ -541,10 +632,13 @@ void loop()
         {
             // in case there has been any changes to preferences
             updatePreferences();
+            updateLocalTime(&timeInfo);
+            updateWifiSignal(WiFi.RSSI());
 
             clearDisplay();
+            
             mainScreenTimer = millis();
-            updateMainScreen(true, 88, 88, 88, 4, 8888, 88.88, currentWifiSignal);   
+            updateMainScreen(true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, 12.34, currentWifiSignal);   
         }
         else if(state == STATE_BRIGHTNESS)
         {
@@ -589,7 +683,9 @@ void loop()
     // update screen once a second
     if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE_MAIN)
     {
+        updateLocalTime(&timeInfo);
+        updateWifiSignal(WiFi.RSSI());
         mainScreenTimer = millis();
-        updateMainScreen(false, 88, 88, 88, 4, 8888, 88.88, currentWifiSignal);
+        updateMainScreen(false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, 12.34, currentWifiSignal); 
     }
 }

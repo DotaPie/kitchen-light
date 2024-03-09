@@ -474,10 +474,10 @@ void updateMinute(uint8_t minute)
 
 void updateTemperature(float temperature)
 {
-    display.fillRect(0, display.height() - 26, display.width() / 2, display.height(), RGB888_TO_RGB565(0, 0, 0));
+    display.fillRect(0, display.height() - 32, display.width() / 2, display.height(), RGB888_TO_RGB565(0, 0, 0));
     display.setCursor(6, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
-    display.setTextSize(2, 3);
+    display.setTextSize(3, 3);
     display.setTextWrap(false);
     display.print((int32_t)temperature);
     display.print(" C");
@@ -485,10 +485,10 @@ void updateTemperature(float temperature)
 
 void updateDate(uint8_t day, uint8_t month, uint16_t year)
 {
-    display.fillRect(0, 0, display.width() / 3 * 2, 26, RGB888_TO_RGB565(0, 0, 0));
-    display.setCursor(6, 2);
+    display.fillRect(0, 0, display.width() - 65, 32, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(6, 6);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
-    display.setTextSize(2, 3);
+    display.setTextSize(3, 3);
     display.setTextWrap(false);
     display.print(day);
     display.print(' ');   

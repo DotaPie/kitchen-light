@@ -39,7 +39,7 @@
 #define PICKER_OFFSET_Y 80
 #define PICKER_HEIGHT 80
 #define PICKER_WIDTH 288 // number should be divisible by 6, or behaviour might vary
-#define MAIN_SCREEN_TIMER_MS 1000 // do not change, doubledot animation is tied to this time
+#define MAIN_SCREEN_TIMER_MS 1000 // do not change !!! used by doubledot animation, wi-fi check, etc.
 #define ANY_SETTING_SCREEN_TIMER_MS 2000
 
 // switches
@@ -53,6 +53,16 @@
 #define COLOR_TEMPERATURE_INDEX_STEP 4 // 8 color picker change for 1 encoder step
 
 // preferences
-#define DEFAULT_ID 104 // change this to other number if you want to force default configuration after next upload
+#define DEFAULT_ID 106 // change this to other number if you want to force default configuration after next upload
+
+// wifi
+#define WIFI_SSID_MAX_LENGTH 128
+#define WIFI_PWD_MAX_LENGTH 128
+
+// time
+#define DEFAULT_GMT_OFFSET_HOURS 1
+#define DEFAULT_DAYLIGHT_OFFSET_HOURS 0
+#define SECONDS_IN_HOUR 3600
+#define YEAR_OFFSET 1900
 
 #endif

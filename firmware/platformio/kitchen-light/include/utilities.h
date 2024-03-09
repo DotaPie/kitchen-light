@@ -11,6 +11,8 @@ enum STATE {STATE_NONE, STATE_MAIN, STATE_BRIGHTNESS, STATE_COLOR};
 enum COLOR_PICKER_TYPE {CPT_NONE, CPT_COLOR_TEMPERATURE, CPT_COLOR_HUE};
 enum WIFI_SIGNAL {WIFI_SIGNAL_NONE, WIFI_SIGNAL_DISCONNECTED, WIFI_SIGNAL_BAD, WIFI_SIGNAL_GOOD, WIFI_SIGNAL_EXCELLENT};
 
+extern const char* NTP_server_domain;
+
 extern const char* monthNames[];
 extern const CRGB kelvin2RGB_lookupTable[];
 extern const char* stateString[];
