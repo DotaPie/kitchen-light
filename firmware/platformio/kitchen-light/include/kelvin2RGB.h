@@ -1,0 +1,12 @@
+#ifndef KELVIN2RGB_H
+#define KELVIN2RGB_H
+
+#include <FastLED.h>
+
+#define KELVIN2RGB_LOOKUP_TABLE_MIN_VALUE 1000
+#define KELVIN2RGB_LOOKUP_TABLE_MAX_VALUE 12000
+#define KELVIN2RGB_LOOKUP_TABLE_STEP 100
+
+extern const CRGB kelvin2RGB_lookupTable[];
+
+#endif

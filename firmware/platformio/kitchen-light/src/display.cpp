@@ -9,6 +9,9 @@
 #include "console.h"
 #include <FastLED.h>
 #include <math.h>
+#include <WiFi.h>
+#include <Preferences.h>
+#include "kelvin2RGB.h"
 
 Adafruit_ST7789 display = Adafruit_ST7789(DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_RST_PIN);
 
@@ -439,20 +442,23 @@ void updateWifiSignal(WIFI_SIGNAL wifiSignal)
     }
 }
 
-void updateHour(uint8_t hour)
+void updateHour(uint8_t hour, bool invalid = false)
 {
-    display.fillRect(0, 60, 140, 120, RGB888_TO_RGB565(0, 0, 0));
-    display.setCursor(6, 60);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
-    display.setTextSize(12, 17);
-    display.setTextWrap(false);
-
-    if(hour < 10)
+    if(!invalid)
     {
-        display.print('0');
-    }
+        display.fillRect(0, 60, 140, 120, RGB888_TO_RGB565(0, 0, 0));
+        display.setCursor(6, 60);
+        display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+        display.setTextSize(12, 17);
+        display.setTextWrap(false);
 
-    display.print(hour);    
+        if(hour < 10)
+        {
+            display.print('0');
+        }
+
+        display.print(hour);  
+    }
 }
 
 void updateDoubledot(bool visible)
@@ -469,64 +475,99 @@ void updateDoubledot(bool visible)
     }
 }
 
-void updateMinute(uint8_t minute)
+void updateMinute(uint8_t minute, bool invalid = false)
 {
-    display.fillRect(180, 60, 140, 120, RGB888_TO_RGB565(0, 0, 0));
-    display.setCursor(182, 60);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
-    display.setTextSize(12, 17);
-    display.setTextWrap(false);
-
-    if(minute < 10)
+    if(!invalid)
     {
-        display.print('0');
-    }
+        display.fillRect(180, 60, 140, 120, RGB888_TO_RGB565(0, 0, 0));
+        display.setCursor(182, 60);
+        display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+        display.setTextSize(12, 17);
+        display.setTextWrap(false);
 
-    display.print(minute);
+        if(minute < 10)
+        {
+            display.print('0');
+        }
+
+        display.print(minute);
+    }
 }
 
-void updateTemperature(float temperature)
+void updateTemperature(float temperature, bool invalid = false)
 {
     display.fillRect(0, display.height() - 39, display.width() * 1/3 - 27, 39, RGB888_TO_RGB565(0, 0, 0));
     display.setCursor(8, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
-    display.print((int32_t)round(temperature));
+
+    if(!invalid)
+    {
+        display.print((int32_t)round(temperature));
+    }
+    else
+    {
+        display.print('-');
+    }
 }
 
-void updateDate(uint8_t day, uint8_t month, uint16_t year)
+void updateDate(uint8_t day, uint8_t month, uint16_t year, bool invalid = false)
 {
     display.fillRect(0, 0, display.width() - 65, 32, RGB888_TO_RGB565(0, 0, 0));
     display.setCursor(6, 6);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
-    display.print(day);
-    display.print(' ');   
-    display.print(monthNames[month]);
-    display.print(' '); 
-    display.print(year);        
+
+    if(!invalid)
+    {
+        display.print(day);
+        display.print(' ');   
+        display.print(monthNames[month]);
+        display.print(' '); 
+        display.print(year); 
+    }
+    else
+    {
+        display.print("-");
+    }   
 }
 
-void updateHumidity(uint8_t humidity)
+void updateHumidity(uint8_t humidity, bool invalid = false)
 {
     display.fillRect(display.width() * 1/3 + 1, display.height() - 39, display.width() * 1/3 - 13, 39, RGB888_TO_RGB565(0, 0, 0));
     display.setCursor(display.width() * 1/3 + 8, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
-    display.print(humidity); 
+    
+    if(!invalid)
+    {
+        display.print(humidity); 
+    }
+    else
+    {
+        display.print("-");
+    } 
 }
 
-void updateWindSpeed(float windGust)
+void updateWindSpeed(float windGust, bool invalid = false)
 {
     display.fillRect(display.width() * 2/3 + 1, display.height() - 39, display.width() * 1/3 - 39, 39, RGB888_TO_RGB565(0, 0, 0));
     display.setCursor(display.width() * 2/3 + 8, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
-    display.print((uint32_t)round(windGust));
+
+    if(!invalid)
+    {
+        display.print((uint32_t)round(windGust));
+    }
+    else
+    {
+        display.print("-");
+    } 
 }
 
 void drawFixedParts()
@@ -565,7 +606,63 @@ void drawFixedParts()
     display.print("s");
 }
 
-void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WIFI_SIGNAL wifiSignal)
+void drawSetupText()
+{
+    char buff[512] = "";
+    
+    display.fillRect(0, 41, display.width(), display.height() - 82, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(0, 47);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 2);
+    display.setTextWrap(true);
+
+    char tempIP[32] = "";
+    WiFi.softAPIP().toString().toCharArray(tempIP, 32);
+
+    sprintf(buff, "1) Connect the the Wi-Fi\r\n  -> %s.\r\n\r\n2) Enter password\r\n  -> %s\r\n\r\n3) Enter to browser\r\n  -> http://%s", defaultSoftAP_ssid, defaultSoftAP_pwd, tempIP);
+    display.print(buff);        
+}
+
+void loadAndExecuteFactoryReset(Preferences *preferences)
+{
+    display.drawRect(PICKER_OFFSET_X, PICKER_OFFSET_Y, PICKER_WIDTH, PICKER_HEIGHT, RGB888_TO_RGB565(255,255,255));
+    display.drawRect(PICKER_OFFSET_X + 1, PICKER_OFFSET_Y + 1, PICKER_WIDTH - 2, PICKER_HEIGHT - 2, RGB888_TO_RGB565(255,255,255));
+
+    display.setCursor(PICKER_OFFSET_X, PICKER_OFFSET_Y - 30);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 3);
+    display.setTextWrap(false);
+    display.print("FACTORY RESET");
+
+    CONSOLE_CRLF("\r\nDISPLAY: FACTORY RESET LOADED")
+
+    for(uint16_t i = 0; i < PICKER_WIDTH - 4; i++)
+    {
+        uint32_t timer = millis();
+
+        // if we decide to interrupt factory reset
+        if(digitalRead(RE_1_SW_PIN) == HIGH || digitalRead(RE_2_SW_PIN) == HIGH)
+        {
+            return;
+        }
+
+        display.drawFastVLine(PICKER_OFFSET_X + 2 + i, PICKER_OFFSET_Y + 2, PICKER_HEIGHT - 4, RGB888_TO_RGB565(255, 255, 255));
+
+        delay((FACTORY_RESET_TIMEOUT_MS / PICKER_WIDTH) - (millis() - timer));  
+    }
+
+    clearDisplay();
+
+    // force factory reset by modifying first run value
+    uint32_t tempVal = preferences->getUInt("firstRun", DEFAULT_ID);
+    tempVal += 1;
+    preferences->putUInt("firstRun", tempVal);
+
+    CONSOLE_CRLF("\r\nESP32: RESTART") 
+    ESP.restart();
+}
+
+void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WIFI_SIGNAL wifiSignal)
 {
     static uint8_t prevHour = 255; 
     static uint8_t prevMinute = 255;
@@ -577,6 +674,7 @@ void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, 
     static float prevWindSpeed = -1.0;
     static WIFI_SIGNAL prevWifiSignal = WIFI_SIGNAL_NONE;
     static bool doubledotVisible = false;
+    static bool previousValidWifiConnection = true;
 
     CONSOLE_CRLF("\r\nDISPLAY: MAIN UPDATED")
 
@@ -585,23 +683,41 @@ void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, 
         drawFixedParts();
     }
 
-    if(hour != prevHour || forceAll)
+    if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    {
+        drawSetupText();
+    }
+
+    if((hour != prevHour || forceAll) && validWifiConnection)
     {
         updateHour(hour);
         prevHour = hour;
         CONSOLE_CRLF("  |-- HOUR UPDATED")
     } 
+    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    {
+        updateHour(hour, true); 
+        CONSOLE_CRLF("  |-- HOUR UPDATED (INVALID)")      
+    }
 
-    updateDoubledot(!doubledotVisible);  
-    doubledotVisible = !doubledotVisible;
-    CONSOLE_CRLF("  |-- DOUBLEDOT UPDATED")
-
-    if(minute != prevMinute || forceAll)
+    if(validWifiConnection)
+    {
+        updateDoubledot(!doubledotVisible);  
+        doubledotVisible = !doubledotVisible;
+        CONSOLE_CRLF("  |-- DOUBLEDOT UPDATED")
+    }
+    
+    if((minute != prevMinute || forceAll) && validWifiConnection)
     {
         updateMinute(minute);
         prevMinute = minute;
         CONSOLE_CRLF("  |-- MINUTE UPDATED")
     } 
+    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    {
+        updateMinute(minute, true); 
+        CONSOLE_CRLF("  |-- MINUTE UPDATED (INVALID)")      
+    }
 
     if(wifiSignal != prevWifiSignal || forceAll)
     {
@@ -610,34 +726,59 @@ void updateMainScreen(bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, 
         CONSOLE_CRLF("  |-- WIFI SIGNAL UPDATED")
     } 
 
-    if(temperature != prevTemperature || forceAll)
+    if((temperature != prevTemperature || forceAll) && validWifiConnection)
     {
         updateTemperature(temperature);
         prevTemperature = temperature;
         CONSOLE_CRLF("  |-- TEMPERATURE UPDATED")
     }
+    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    {
+        updateTemperature(temperature, true); 
+        CONSOLE_CRLF("  |-- TEMPERATURE UPDATED (INVALID)")      
+    }
 
-    if(humidity != prevHumidity || forceAll)
+    if((humidity != prevHumidity || forceAll) && validWifiConnection)
     {
         updateHumidity(humidity);
         prevHumidity = humidity;
         CONSOLE_CRLF("  |-- HUMIDITY UPDATED")
     }
+    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    {
+        updateHumidity(humidity, true); 
+        CONSOLE_CRLF("  |-- HUMIDITY UPDATED (INVALID)")      
+    }
 
-    if(windSpeed != prevWindSpeed|| forceAll)
+    if((windSpeed != prevWindSpeed || forceAll) && validWifiConnection)
     {
         updateWindSpeed(windSpeed);
         prevWindSpeed = windSpeed;
         CONSOLE_CRLF("  |-- WIND SPEED UPDATED")
     }
+    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    {
+        updateWindSpeed(windSpeed, true); 
+        CONSOLE_CRLF("  |-- WIND SPEED UPDATED (INVALID)")      
+    }
 
-    if(day != prevDay || month != prevMonth || year != prevYear || forceAll)
+    if((day != prevDay || month != prevMonth || year != prevYear || forceAll) && validWifiConnection)
     {
         updateDate(day, month, year);
         prevDay = day;
         prevMonth = month;
         prevYear = year;
         CONSOLE_CRLF("  |-- DATE UPDATED")
+    }
+    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    {
+        updateDate(day, month, year, true); 
+        CONSOLE_CRLF("  |-- DATE UPDATED (INVALID)")      
+    }
+
+    if(previousValidWifiConnection != validWifiConnection)
+    {
+        previousValidWifiConnection = validWifiConnection;  
     }
 }
 

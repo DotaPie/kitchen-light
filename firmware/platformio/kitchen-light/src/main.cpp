@@ -11,6 +11,7 @@
 #include "macros.h"
 #include "display.h"
 #include "utilities.h"
+#include "html.h"
 
 // libs
 #include <RotaryEncoder.h>
@@ -18,6 +19,7 @@
 
 // main.cpp globals
 STATE state, previousState;
+bool validWifiConnection;
 
 Preferences preferences;
 
@@ -34,11 +36,13 @@ CRGB LED_stripArray[LED_STRIP_LED_COUNT];
 RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 RotaryEncoder encoder_2 = RotaryEncoder(RE_2_IN1_PIN, RE_2_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 
+uint32_t encoder_1_switch_debounce_timer = 0;
+uint32_t encoder_2_switch_debounce_timer = 0;
+
 WIFI_SIGNAL currentWifiSignal;
 char wifi_ssid[WIFI_SSID_MAX_LENGTH + 1] = "";
 char wifi_pwd[WIFI_PWD_MAX_LENGTH + 1] = "";
-int32_t GMT_offset_hours;
-bool daylight_enabled;
+char timeZone[TIME_ZONE_MAX_LENGTH + 1] = ""; // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json
 
 char city[CITY_MAX_LENGTH + 1] = "";
 char countryCode[COUNTRY_CODE_MAX_LENGTH + 1] = "";
@@ -47,6 +51,11 @@ char openWeatherAPI_key[API_KEY_MAX_LENGTH + 1] = "";
 float temperature_C;
 uint8_t humidity;
 float windSpeed;
+
+uint16_t rng_id;
+uint32_t rng_pwd;
+
+WiFiServer server(WIFI_SERVER_PORT);    
 
 void loadPreferences()
 {
@@ -57,6 +66,7 @@ void loadPreferences()
 
     if(preferences.getUInt("firstRun", 0) != DEFAULT_ID)
     {
+        randomSeed(analogRead(UNCONNECTED_ANALOG_PIN));
         firstTimeRun = true;
         preferences.putUInt("firstRun", DEFAULT_ID);
         preferences.putUChar("CPT", (uint8_t)CPT_COLOR_TEMPERATURE);
@@ -65,11 +75,12 @@ void loadPreferences()
         preferences.putUChar("brightness", DEFAULT_BRIGHTNESS);
         preferences.putBytes("wifi_ssid", "****", WIFI_SSID_MAX_LENGTH + 1);
         preferences.putBytes("wifi_pwd", "****", WIFI_PWD_MAX_LENGTH + 1);
-        preferences.putInt("GMT_offset", DEFAULT_GMT_OFFSET_HOURS); // hours
-        preferences.putBool("DL-enabled", true); // hours
+        preferences.putBytes("time-zone", "GMT0", TIME_ZONE_MAX_LENGTH + 1);
         preferences.putBytes("city", "****", CITY_MAX_LENGTH + 1);
         preferences.putBytes("country-c", "**", COUNTRY_CODE_MAX_LENGTH + 1);
         preferences.putBytes("api-key", "****", API_KEY_MAX_LENGTH + 1);
+        preferences.putUInt("rng-id", random(1000, 10000));
+        preferences.putUInt("rng-pwd", random(10000000, 100000000));
     }
 
     current_CPT = (COLOR_PICKER_TYPE)preferences.getUChar("CPT", (uint8_t)CPT_NONE);  
@@ -83,12 +94,17 @@ void loadPreferences()
 
     preferences.getBytes("wifi_ssid", wifi_ssid, WIFI_SSID_MAX_LENGTH + 1);
     preferences.getBytes("wifi_pwd", wifi_pwd, WIFI_PWD_MAX_LENGTH + 1);
-    GMT_offset_hours = preferences.getInt("GMT_offset", DEFAULT_GMT_OFFSET_HOURS); // hours
-    daylight_enabled = preferences.getBool("DL-enabled", true);
+    preferences.getBytes("time-zone", timeZone, TIME_ZONE_MAX_LENGTH + 1);
 
     preferences.getBytes("city", city, CITY_MAX_LENGTH + 1);
     preferences.getBytes("country-c", countryCode, COUNTRY_CODE_MAX_LENGTH + 1);
     preferences.getBytes("api-key", openWeatherAPI_key, API_KEY_MAX_LENGTH + 1);
+
+    rng_id = preferences.getUInt("rng-id", 1234);
+    rng_pwd = preferences.getUInt("rng-pwd", 123456);
+
+    sprintf(defaultSoftAP_ssid, "Kitchen light #%d", rng_id);
+    sprintf(defaultSoftAP_pwd, "%d", rng_pwd);
     
     CONSOLE_CRLF("OK")
 
@@ -110,8 +126,23 @@ void loadPreferences()
     CONSOLE("  |-- wifi password: ");
     CONSOLE_CRLF(wifi_pwd)
 
-    CONSOLE("  |-- GMT offset: ")
-    CONSOLE_CRLF()
+    CONSOLE("  |-- time zone: ");
+    CONSOLE_CRLF(timeZone)
+
+    CONSOLE("  |-- City: ");
+    CONSOLE_CRLF(city)
+
+    CONSOLE("  |-- Country code: ");
+    CONSOLE_CRLF(countryCode)
+
+    CONSOLE("  |-- Openweather API key: ");
+    CONSOLE_CRLF(openWeatherAPI_key)
+
+    CONSOLE("  |-- rng id: ")
+    CONSOLE_CRLF(rng_id)
+
+    CONSOLE("  |-- rng pwd: ")
+    CONSOLE_CRLF(rng_pwd)
 }
 
 void update_LED_strip()
@@ -224,6 +255,7 @@ void setupSwitches()
 void loadDefaultValues()
 {
     CONSOLE("\r\nLoading default values: ")
+    validWifiConnection = false;
     state = STATE_MAIN;
     previousState = STATE_NONE;
 
@@ -420,9 +452,6 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
     uint8_t encoder_1_switch = digitalRead(RE_1_SW_PIN);
     uint8_t encoder_2_switch = digitalRead(RE_2_SW_PIN);
 
-    static uint32_t encoder_1_switch_debounce_timer = 0;
-    static uint32_t encoder_2_switch_debounce_timer = 0;
-
     if( previous_encoder_1_position != encoder_1_position)
     {
         *rotary_encoder_timer = millis();
@@ -474,36 +503,43 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
         } 
     }
 
-    if(encoder_1_switch == LOW && millis() - encoder_1_switch_debounce_timer > ENCODER_SWITCH_DEBOUNCE_TIMER_MS)
+    if(encoder_1_switch == LOW && encoder_2_switch == LOW)
     {
-        encoder_1_switch_debounce_timer = millis();
-        *rotary_encoder_timer = millis();
-
-        if(state == STATE_BRIGHTNESS)
-        {
-            // unused - reserved
-        }
-        else if(state == STATE_MAIN || state == STATE_COLOR)
-        {
-            state = STATE_BRIGHTNESS;
-        }      
+        state = STATE_FACTORY_RESET;
     }
-
-    if(encoder_2_switch == LOW && millis() - encoder_2_switch_debounce_timer > ENCODER_SWITCH_DEBOUNCE_TIMER_MS)
+    else
     {
-        encoder_2_switch_debounce_timer = millis();
-        *rotary_encoder_timer = millis();
+        if(encoder_1_switch == LOW && millis() - encoder_1_switch_debounce_timer > ENCODER_SWITCH_DEBOUNCE_TIMER_MS)
+        {
+            encoder_1_switch_debounce_timer = millis();
+            *rotary_encoder_timer = millis();
 
-        if(state == STATE_COLOR)
+            if(state == STATE_BRIGHTNESS)
+            {
+                // unused - reserved
+            }
+            else if(state == STATE_MAIN || state == STATE_COLOR)
+            {
+                state = STATE_BRIGHTNESS;
+            }      
+        }
+
+        if(encoder_2_switch == LOW && millis() - encoder_2_switch_debounce_timer > ENCODER_SWITCH_DEBOUNCE_TIMER_MS)
         {
-            current_CPT = (current_CPT == CPT_COLOR_TEMPERATURE) ? CPT_COLOR_HUE : CPT_COLOR_TEMPERATURE;  
-            CONSOLE("\r\nCOLOR PICKER TYPE CHANGE: ")  
-            CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT])  
-        }  
-        else if(state == STATE_MAIN || state == STATE_BRIGHTNESS)
-        {
-            state = STATE_COLOR;
-        }   
+            encoder_2_switch_debounce_timer = millis();
+            *rotary_encoder_timer = millis();
+
+            if(state == STATE_COLOR)
+            {
+                current_CPT = (current_CPT == CPT_COLOR_TEMPERATURE) ? CPT_COLOR_HUE : CPT_COLOR_TEMPERATURE;  
+                CONSOLE("\r\nCOLOR PICKER TYPE CHANGE: ")  
+                CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT])  
+            }  
+            else if(state == STATE_MAIN || state == STATE_BRIGHTNESS)
+            {
+                state = STATE_COLOR;
+            }   
+        }
     }
 }
 
@@ -534,7 +570,11 @@ void updateWifiSignal(int8_t rssi)
 {
     CONSOLE("\r\nUPDATING WIFI SIGNAL: ")
 
-    if(rssi < -75)
+    if(!validWifiConnection)
+    {
+        currentWifiSignal = WIFI_SIGNAL_DISCONNECTED;    
+    }
+    else if(rssi < -75)
     {
         currentWifiSignal = WIFI_SIGNAL_BAD;
     } 
@@ -554,14 +594,26 @@ void updateWifiSignal(int8_t rssi)
     CONSOLE_CRLF(wifiSignalString[(uint8_t)currentWifiSignal])
 }
 
-void setupWifi()
+bool setupWifi()
 {
     int8_t rssi;
+    uint32_t timeout = millis();
 
     WiFi.begin(wifi_ssid, wifi_pwd);
 
     while(WiFi.status() != WL_CONNECTED)
     {
+        if(millis() > WIFI_CONNECT_TIMEOUT_MS)
+        {
+            CONSOLE("\r\nWi-Fi status: ")
+            CONSOLE_CRLF("ERROR")
+
+            WiFi.disconnect();
+
+            currentWifiSignal = WIFI_SIGNAL_DISCONNECTED;
+            return false;
+        }
+        
         CONSOLE("\r\nWi-Fi status: ")
         CONSOLE_CRLF("CONNECTING")
 
@@ -571,35 +623,44 @@ void setupWifi()
     rssi = WiFi.RSSI();
 
     CONSOLE("\r\nWi-Fi status: ")
-    CONSOLE_CRLF("CONNECTED")
+    CONSOLE_CRLF("OK")
     CONSOLE("  |-- AP name: ")
     CONSOLE_CRLF(WiFi.SSID())
     CONSOLE("  |-- IP: ")
     CONSOLE_CRLF(WiFi.localIP())
-    CONSOLE("  |-- RSSI: ")
-    CONSOLE_CRLF(rssi)
 
+    validWifiConnection = true;
     updateWifiSignal(rssi);
+
+    return true;
 }
 
-int8_t getDaylightOffsetHours()
-{
-    return 0; // TODO: verify against date and time
-}
-
+// TODO: fix formatting issue from URL of special symbols such as '/'
+// TODO: verify AP disconnection, weather response not comming, etc...
 void syncDateTime()
 {
     CONSOLE("\r\nSYNCING LOCAL TIME: ")
-    configTime(GMT_offset_hours * SECONDS_IN_HOUR, daylight_enabled ? getDaylightOffsetHours() * SECONDS_IN_HOUR : 0, NTP_server_domain);
+
+    configTime(0, 0, NTP_server_domain);
 
     struct tm timeInfo;
     while(!getLocalTime(&timeInfo)); // sometimes this might take while
 
+    setenv("TZ", timeZone, 1);
+    tzset();
+
     CONSOLE_CRLF("OK")
+    CONSOLE("  |-- timezone: ")
+    CONSOLE_CRLF(timeZone)
 }
 
 void updateLocalTime(tm *timeInfo)
 {
+    if (!validWifiConnection)
+    {
+        return;
+    }
+
     CONSOLE("\r\nUPDATING LOCAL TIME: ")
 
     if(!getLocalTime(timeInfo))
@@ -682,6 +743,269 @@ void updateWeather()
     CONSOLE_CRLF(windSpeed);
 }
 
+void enableAP()
+{
+    WiFi.softAP(defaultSoftAP_ssid, defaultSoftAP_pwd);
+    server.begin();
+
+    CONSOLE_CRLF("\r\nSOFT AP INFO")
+    CONSOLE("  |-- IP: ")
+    CONSOLE_CRLF(WiFi.softAPIP())
+    CONSOLE("  |-- SSID: ")
+    CONSOLE_CRLF(defaultSoftAP_ssid)
+    CONSOLE("  |-- password: ")
+    CONSOLE_CRLF(defaultSoftAP_pwd)
+}
+
+void saveNewParamsToPreferences(char *buff)
+{
+    char valBuff[MAX_PREFERENCE_LENGTH + 1] = "";
+    char c = '\0';
+    uint16_t index = 0;
+    char *ptr;
+    
+    // ssid
+    ptr = strstr(buff, "ssid");
+    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
+    index = 0;
+    while(index < MAX_PREFERENCE_LENGTH)
+    {
+        char c = ptr[index + 5]; // skip "ssid="
+
+        if(c == '&')
+        {
+            strcpy(wifi_ssid, valBuff);
+            break;
+        }
+       
+        valBuff[index] = c;
+        index += 1; 
+
+        if(index >= WIFI_SSID_MAX_LENGTH)  
+        {
+            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            break;
+        }     
+    }
+
+    // pwd
+    ptr = strstr(buff, "pwd");
+    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
+    index = 0;
+    while(index < MAX_PREFERENCE_LENGTH)
+    {
+        char c = ptr[index + 4]; // skip "pwd="
+
+        if(c == '&')
+        {
+            strcpy(wifi_pwd, valBuff);
+            break;
+        }
+       
+        valBuff[index] = c;
+        index += 1; 
+
+        if(index >= WIFI_PWD_MAX_LENGTH)  
+        {
+            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            break;
+        }     
+    }
+
+    // city
+    ptr = strstr(buff, "city");
+    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
+    index = 0;
+    while(index < MAX_PREFERENCE_LENGTH)
+    {
+        char c = ptr[index + 5]; // skip "city="
+
+        if(c == '&')
+        {
+            strcpy(city, valBuff);
+            break;
+        }
+       
+        valBuff[index] = c;
+        index += 1; 
+
+        if(index >= CITY_MAX_LENGTH)  
+        {
+            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            break;
+        }     
+    }
+
+    // country-code
+    ptr = strstr(buff, "country-code");
+    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
+    index = 0;
+    while(index < MAX_PREFERENCE_LENGTH)
+    {
+        char c = ptr[index + 13]; // skip "country-code="
+
+        if(c == '&')
+        {
+            strcpy(countryCode, valBuff);
+            break;
+        }
+       
+        valBuff[index] = c;
+        index += 1; 
+
+        if(index >= COUNTRY_CODE_MAX_LENGTH)  
+        {
+            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            break;
+        }     
+    }
+
+    // time zone
+    ptr = strstr(buff, "timezones");
+    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
+    index = 0;
+    while(index < MAX_PREFERENCE_LENGTH)
+    {
+        char c = ptr[index + 10]; // skip "timezones="
+
+        if(c == '&')
+        {
+            strcpy(timeZone, valBuff);
+            break;
+        }
+       
+        valBuff[index] = c;
+        index += 1;   
+
+        if(index >= TIME_ZONE_MAX_LENGTH)  
+        {
+            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            break;
+        }    
+    }
+
+    // daylight saving enabled
+    ptr = strstr(buff, "api-key");
+    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
+    index = 0;
+    while(index < MAX_PREFERENCE_LENGTH)
+    {
+        char c = ptr[index + 8]; // skip "api-key="
+
+        // last parameter ends in ' ' instead of &
+        if(c == ' ')
+        {
+            strcpy(openWeatherAPI_key, valBuff);
+            break;
+        }
+       
+        valBuff[index] = c;
+        index += 1;   
+
+        if(index >= API_KEY_MAX_LENGTH)  
+        {
+            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            break;
+        }   
+    }
+
+    preferences.putBytes("wifi_ssid", wifi_ssid, WIFI_SSID_MAX_LENGTH + 1);
+    preferences.putBytes("wifi_pwd", wifi_pwd, WIFI_PWD_MAX_LENGTH + 1);
+    preferences.putBytes("time-zone", timeZone, TIME_ZONE_MAX_LENGTH + 1);
+    preferences.putBytes("city", city, CITY_MAX_LENGTH + 1);
+    preferences.putBytes("country-c", countryCode, COUNTRY_CODE_MAX_LENGTH + 1);
+    preferences.putBytes("api-key", openWeatherAPI_key, API_KEY_MAX_LENGTH + 1);
+}
+
+void handleServerClients()
+{
+    WiFiClient client = server.available();   // Listen for incoming clients
+    char buff[MAX_HTTP_PAYLOAD_SIZE] = "";
+    uint16_t index = 0;
+    uint32_t timeout = 0;
+    static bool formPacketComplete = false;
+    static bool setupPacketComplete = false;
+
+    if(client)
+    {
+        CONSOLE_CRLF("\r\nSERVER: NEW CLIENT") 
+        CONSOLE_CRLF("\r\nPACKET:") 
+        CONSOLE_CRLF("- - - - - - - - -")
+
+        timeout = millis();
+
+        while(client.connected())
+        {
+            if(millis() - timeout > SERVER_CLIENT_TIMEOUT_MS)
+            {
+                CONSOLE_CRLF("- - - - - - - - -")
+                CONSOLE_CRLF("\r\nSERVER: CLIENT TIMEOUT") 
+                break;
+            }
+
+            if(client.available() > 0)
+            {
+                char c =  client.read();
+                CONSOLE(c)   
+                buff[index++] = c; 
+            }
+
+            // look for end of header
+            if(strstr(buff, "\r\n\r\n") != NULL && !formPacketComplete)
+            {
+                CONSOLE_CRLF("- - - - - - - - -")
+                CONSOLE_CRLF("\r\nSERVER: FORM PACKET RECEIVED")
+                formPacketComplete = true;
+                break;
+            }
+
+            if( 
+                strstr(buff, "\r\n\r\n") != NULL && 
+                formPacketComplete &&
+                !setupPacketComplete &&
+                strstr(buff, "ssid") != NULL &&
+                strstr(buff, "pwd") != NULL &&
+                strstr(buff, "city") != NULL &&
+                strstr(buff, "country-code") != NULL &&
+                strstr(buff, "timezones") != NULL &&
+                strstr(buff, "api-key") != NULL
+            )
+            {
+                CONSOLE_CRLF("- - - - - - - - -")
+                CONSOLE_CRLF("\r\nSERVER: SETUP PACKET RECEIVED")
+                CONSOLE_CRLF("  |-- received all required parameters")
+
+                CONSOLE_CRLF("\r\nSERVER: SAVING NEW PARAMETERS TO PREFERENCES")
+                saveNewParamsToPreferences(buff);   
+
+                setupPacketComplete = true;
+                break;
+            }
+        }  
+
+        if(formPacketComplete && !setupPacketComplete)
+        {
+            client.print(htmlWebPageForm);    
+        }
+        else if(formPacketComplete && setupPacketComplete)
+        {
+            sprintf(buff, htmlWebPageCompleteFormatter, wifi_ssid, wifi_pwd, city, countryCode, timeZone, openWeatherAPI_key);
+            client.print(buff);  
+            client.flush();
+            client.stop();
+            CONSOLE_CRLF("\r\nSERVER: CLIENT DISCONNECTED")   
+
+            CONSOLE_CRLF("\r\nESP32: RESTART")  
+            ESP.restart();       
+        }
+        else
+        {
+            client.stop();
+            CONSOLE_CRLF("\r\nSERVER: CLIENT DISCONNECTED")
+        }
+    }
+}
+
 void setup()
 {
     delay(DELAY_BEFORE_STARTUP_MS);
@@ -696,11 +1020,17 @@ void setup()
     setup_LED_strip();
     CONSOLE_CRLF()
 
-    setupWifi(); // we could do this before loading animation of LED strip, but on single core CPUs this could cause issues
-    syncDateTime();
-
-    updateWeather();
-
+    // we could do this before loading animation of LED strip, but on single core CPUs this could cause issues
+    if(setupWifi())
+    {
+        syncDateTime();
+        updateWeather();
+    }
+    else
+    {
+        enableAP();
+    }
+    
     state = STATE_MAIN;
 
     CONSOLE_CRLF("\r\n~~~ LOOP ~~~")
@@ -712,17 +1042,20 @@ void loop()
     static uint32_t weatherTimer = millis();
     static uint32_t rotary_encoder_timer = 0;
     struct tm timeInfo;
+    static uint16_t dayOfTimeSync = 0;
+    static bool readyToTimeSync = true;
 
     // handle inputs
     checkSwitches();
     checkRotaryEncoders(&rotary_encoder_timer);
 
+    // auto state change to main
     if((state == STATE_BRIGHTNESS || state == STATE_COLOR) && millis() - rotary_encoder_timer > ANY_SETTING_SCREEN_TIMER_MS)
     {
         state = STATE_MAIN;
     }
 
-    // handle state change
+    // display state change
     if(state != previousState)
     {
         previousState = state;
@@ -746,7 +1079,7 @@ void loop()
             clearDisplay();
             
             mainScreenTimer = millis();
-            updateMainScreen(true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, currentWifiSignal);   
+            updateMainScreen(validWifiConnection, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, currentWifiSignal);   
         }
         else if(state == STATE_BRIGHTNESS)
         {
@@ -765,6 +1098,14 @@ void loop()
             {
                 loadDisplayColorHue(currentColorHueIndex, previousColorHueIndex);  
             }
+        }
+        else if(state == STATE_FACTORY_RESET)
+        {
+            clearDisplay();
+            loadAndExecuteFactoryReset(&preferences);// this function is blocking, either ends up in reset or continue
+            encoder_1_switch_debounce_timer = millis();
+            encoder_2_switch_debounce_timer = encoder_1_switch_debounce_timer;
+            state = STATE_MAIN;
         }
     }
     else if(current_CPT != previous_CPT && state == STATE_COLOR) // handle CPT change during state == STATE_COLOR
@@ -788,20 +1129,37 @@ void loop()
         }                
     }
 
-    // update screen once a second
+    // update screen
     if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE_MAIN)
     {
         mainScreenTimer = millis();
         updateLocalTime(&timeInfo);
         updateWifiSignal(WiFi.RSSI());
         
-        updateMainScreen(false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, currentWifiSignal); 
+        updateMainScreen(validWifiConnection, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, currentWifiSignal); 
     }
 
     // update weather
-    if(millis() - weatherTimer > UPDATE_WEATHER_MS && state == STATE_MAIN)
+    if(millis() - weatherTimer > UPDATE_WEATHER_MS && state == STATE_MAIN && validWifiConnection)
     {
         weatherTimer = millis();
         updateWeather();
+    }
+
+    if(!validWifiConnection)
+    {
+        handleServerClients();
+    }
+
+    if(readyToTimeSync && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR)
+    {
+        readyToTimeSync = false;
+        dayOfTimeSync = timeInfo.tm_mday;
+        syncDateTime();
+    }
+
+    if(dayOfTimeSync != timeInfo.tm_mday)
+    {
+        readyToTimeSync = true;    
     }
 }

@@ -22,4 +22,7 @@
 #define SWITCH_1_PIN 15
 #define SWITCH_2_PIN 7
 
+// random seed
+#define UNCONNECTED_ANALOG_PIN 6
+
 #endif
