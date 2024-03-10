@@ -619,7 +619,7 @@ void drawSetupText()
     char tempIP[32] = "";
     WiFi.softAPIP().toString().toCharArray(tempIP, 32);
 
-    sprintf(buff, "1) Connect the the Wi-Fi\r\n  -> %s.\r\n\r\n2) Enter password\r\n  -> %s\r\n\r\n3) Enter to browser\r\n  -> http://%s", defaultSoftAP_ssid, defaultSoftAP_pwd, tempIP);
+    sprintf(buff, "1) Connect the the Wi-Fi:\r\n  -> %s\r\n\r\n2) Enter password:\r\n  -> %s\r\n\r\n3) Enter to browser:\r\n  -> http://%s", defaultSoftAP_ssid, defaultSoftAP_pwd, tempIP);
     display.print(buff);        
 }
 
