@@ -129,13 +129,13 @@ void loadPreferences()
     CONSOLE("  |-- time zone: ");
     CONSOLE_CRLF(timeZone)
 
-    CONSOLE("  |-- City: ");
+    CONSOLE("  |-- city: ");
     CONSOLE_CRLF(city)
 
-    CONSOLE("  |-- Country code: ");
+    CONSOLE("  |-- country code: ");
     CONSOLE_CRLF(countryCode)
 
-    CONSOLE("  |-- Openweather API key: ");
+    CONSOLE("  |-- openweather API key: ");
     CONSOLE_CRLF(openWeatherAPI_key)
 
     CONSOLE("  |-- rng id: ")
@@ -641,7 +641,7 @@ void syncDateTime()
 {
     CONSOLE("\r\nSYNCING LOCAL TIME: ")
 
-    configTime(0, 0, NTP_server_domain);
+    configTime(0, 0, NTP_server_domain); // timezone offset
 
     struct tm timeInfo;
     while(!getLocalTime(&timeInfo)); // sometimes this might take while
@@ -757,6 +757,33 @@ void enableAP()
     CONSOLE_CRLF(defaultSoftAP_pwd)
 }
 
+void decodeUrlCodes(char *valBuff, char *valBuffFiltered)
+{
+    uint16_t index = 0;
+    char buff[3] = "";
+    char c;
+    char *ptr;
+    
+    for(uint16_t i = 0; i < strlen(valBuff); i++)
+    {
+        c = valBuff[i];
+
+        if(c == '%')
+        {
+            buff[0] = valBuff[i + 1];      
+            buff[1] = valBuff[i + 2]; 
+
+            valBuffFiltered[index++] = (char)strtol(buff, &ptr, 16); 
+            i += 2; // skip the bytes we just stored
+            continue;
+        }
+        else
+        {
+            valBuffFiltered[index++] = c; 
+        }                       
+    }           
+}
+
 void saveNewParamsToPreferences(char *buff)
 {
     char valBuff[MAX_PREFERENCE_LENGTH + 1] = "";
@@ -870,7 +897,9 @@ void saveNewParamsToPreferences(char *buff)
 
         if(c == '&')
         {
-            strcpy(timeZone, valBuff);
+            char valBuffFiltered[MAX_PREFERENCE_LENGTH + 1] = "";
+            decodeUrlCodes(valBuff, valBuffFiltered); // for example '/' is encoded into %2F, put it back to '/'
+            strcpy(timeZone, valBuffFiltered);
             break;
         }
        
@@ -950,7 +979,7 @@ void handleServerClients()
                 buff[index++] = c; 
             }
 
-            // look for end of header
+            // look for end of header of any request
             if(strstr(buff, "\r\n\r\n") != NULL && !formPacketComplete)
             {
                 CONSOLE_CRLF("- - - - - - - - -")
@@ -992,6 +1021,7 @@ void handleServerClients()
             sprintf(buff, htmlWebPageCompleteFormatter, wifi_ssid, wifi_pwd, city, countryCode, timeZone, openWeatherAPI_key);
             client.print(buff);  
             client.flush();
+            delay(1000);
             client.stop();
             CONSOLE_CRLF("\r\nSERVER: CLIENT DISCONNECTED")   
 
@@ -1000,6 +1030,7 @@ void handleServerClients()
         }
         else
         {
+            delay(1000);
             client.stop();
             CONSOLE_CRLF("\r\nSERVER: CLIENT DISCONNECTED")
         }
