@@ -1,8 +1,8 @@
+// core includes
 #include <Arduino.h>
 #include <Preferences.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h>
 
 // project includes
 #include "console.h"
@@ -16,52 +16,55 @@
 // libs
 #include <RotaryEncoder.h>
 #include <FastLED.h>
+#include <ArduinoJson.h>
 
-// main.cpp globals
-STATE state, previousState;
-bool validWifiConnection;
-
+// core globals
+STATE state = STATE_MAIN; 
+STATE previousState = STATE_NONE;
+bool validWifiConnection = false;
 Preferences preferences;
 
+// preferences globals: will be loaded in setup -> loadPreferences();
 COLOR_PICKER_TYPE current_CPT, previous_CPT;
 uint16_t currentColorHueIndex, previousColorHueIndex;
 uint16_t currentColorTemperatureIndex, previousColorTemperatureIndex;
 uint8_t currentBrightness, previousBrightness;
+uint16_t rng_id;
+uint32_t rng_pwd;  
 
-uint8_t previousSwitch_1, previousSwitch_2;
-long previous_encoder_1_position, previous_encoder_2_position;
-
-CRGB LED_stripArray[LED_STRIP_LED_COUNT];
-
-RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
-RotaryEncoder encoder_2 = RotaryEncoder(RE_2_IN1_PIN, RE_2_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
-
-uint32_t encoder_1_switch_debounce_timer = 0;
-uint32_t encoder_2_switch_debounce_timer = 0;
-
-WIFI_SIGNAL currentWifiSignal;
+// user config globals: will be loaded after initial device setup
 char wifi_ssid[WIFI_SSID_MAX_LENGTH + 1] = "";
 char wifi_pwd[WIFI_PWD_MAX_LENGTH + 1] = "";
 char timeZone[TIME_ZONE_MAX_LENGTH + 1] = ""; // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json
-
 char city[CITY_MAX_LENGTH + 1] = "";
 char countryCode[COUNTRY_CODE_MAX_LENGTH + 1] = "";
 char openWeatherAPI_key[API_KEY_MAX_LENGTH + 1] = "";
 
-float temperature_C;
-uint8_t humidity;
-float windSpeed;
+// switch and encoder globals
+RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
+RotaryEncoder encoder_2 = RotaryEncoder(RE_2_IN1_PIN, RE_2_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
+long previous_encoder_1_position = 0; 
+long previous_encoder_2_position = 0;
+uint32_t encoder_1_switch_debounce_timer = 0;
+uint32_t encoder_2_switch_debounce_timer = 0;
+uint8_t previousSwitch_1, previousSwitch_2; // will be loaded in setup -> loadDefaults();
 
-uint16_t rng_id;
-uint32_t rng_pwd;
+// weather telemetry globals
+float temperature_C = -273.15;
+uint8_t humidity = 255;
+float windSpeed = -1.0;
+WIFI_SIGNAL wifiSignal = WIFI_SIGNAL_DISCONNECTED;
+WEATHER weather = WEATHER_NONE;
 
-WiFiServer server(WIFI_SERVER_PORT);    
-
+// other globals
+WiFiServer server(WIFI_SERVER_PORT); 
+CRGB LED_stripArray[LED_STRIP_LED_COUNT];
+ 
 void loadPreferences()
 {
     bool firstTimeRun = false;
 
-    CONSOLE("\r\nLoading preferences: ")
+    CONSOLE("Loading preferences: ")
     preferences.begin("app", false);
 
     if(preferences.getUInt("firstRun", 0) != DEFAULT_ID)
@@ -199,7 +202,7 @@ void LED_strip_load_animation()
 
 void setup_LED_strip()
 {
-    CONSOLE("\r\nLED strip: ")
+    CONSOLE("LED strip: ")
     FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, LED_STRIP_LED_COUNT).setCorrection(TypicalLEDStrip);
 
     #ifndef DEVELOPMENT   
@@ -225,7 +228,7 @@ void checkRotaryEncoderPosition_2()
 
 void setupRotaryEncoders()
 {
-    CONSOLE("\r\nRotary encoder #1: ")
+    CONSOLE("Rotary encoder #1: ")
     attachInterrupt(digitalPinToInterrupt(RE_1_IN1_PIN), checkRotaryEncoderPosition_1, CHANGE);
     attachInterrupt(digitalPinToInterrupt(RE_1_IN2_PIN), checkRotaryEncoderPosition_1, CHANGE);
     pinMode(RE_1_SW_PIN, INPUT_PULLUP);
@@ -240,7 +243,7 @@ void setupRotaryEncoders()
 
 void setupSwitches()
 {
-    CONSOLE("\r\nSwitches: ")   
+    CONSOLE("Switches: ")   
     pinMode(SWITCH_1_PIN, INPUT_PULLUP);
     pinMode(SWITCH_2_PIN, INPUT_PULLUP);
     CONSOLE_CRLF("OK") 
@@ -254,18 +257,10 @@ void setupSwitches()
 
 void loadDefaultValues()
 {
-    CONSOLE("\r\nLoading default values: ")
-    validWifiConnection = false;
-    state = STATE_MAIN;
-    previousState = STATE_NONE;
+    CONSOLE("Loading default values: ")
 
     previousSwitch_1 = digitalRead(SWITCH_1_PIN);
     previousSwitch_2 = digitalRead(SWITCH_2_PIN);
-
-    previous_encoder_1_position = 0;
-    previous_encoder_2_position = 0;
-
-    currentWifiSignal = WIFI_SIGNAL_DISCONNECTED;
 
     CONSOLE_CRLF("OK")
 }
@@ -284,7 +279,7 @@ void checkSwitches()
 
         update_LED_strip();
 
-        CONSOLE("\r\nSWITCH_1 STATE CHANGE: ");
+        CONSOLE("SWITCH_1 STATE CHANGE: ");
         CONSOLE_CRLF(switch_1 == LOW ? "ON" : "OFF");
     }
 
@@ -295,7 +290,7 @@ void checkSwitches()
 
         update_LED_strip();
 
-        CONSOLE("\r\nSWITCH_2 STATE CHANGE: ");
+        CONSOLE("SWITCH_2 STATE CHANGE: ");
         CONSOLE_CRLF(switch_2 == LOW ? "ON" : "OFF");
     }
 }
@@ -317,7 +312,7 @@ void updateBrightness(int direction)
         currentBrightness = (uint8_t)tempBrightness;     
     }
 
-    CONSOLE_CRLF("\r\nBRIGHTNESS UPDATE")
+    CONSOLE_CRLF("BRIGHTNESS UPDATE")
     CONSOLE("  |-- previous value: ")
     CONSOLE_CRLF(previousBrightness)
     CONSOLE("  |-- new value: ")
@@ -355,7 +350,7 @@ void updateColorHue(int direction)
     CRGB previousColor = calculateColorHueFromPickerPosition(previousColorHueIndex);
     
 
-    CONSOLE_CRLF("\r\nCOLOR HUE UPDATE")
+    CONSOLE_CRLF("COLOR HUE UPDATE")
     CONSOLE("  |-- previous picker value: ")
     CONSOLE_CRLF(previousColorHueIndex)
     CONSOLE("  |-- previous color value: ")
@@ -407,7 +402,7 @@ void updateColorTemperature(int direction)
     CRGB currentColor = calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);
     CRGB previousColor = calculateColorTemperatureFromPickerPosition(previousColorTemperatureIndex);
     
-    CONSOLE_CRLF("\r\nCOLOR TEMPERATURE UPDATE")
+    CONSOLE_CRLF("COLOR TEMPERATURE UPDATE")
     CONSOLE("  |-- previous picker value: ")
     CONSOLE_CRLF(previousColorTemperatureIndex)
     CONSOLE("  |-- previous color value: ")
@@ -458,7 +453,7 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
         previous_encoder_1_position = encoder_1_position;
         encoder_1_direction = (int)(encoder_1.getDirection());
 
-        CONSOLE_CRLF("\r\nROTARY ENCODER 1 CHANGE")
+        CONSOLE_CRLF("ROTARY ENCODER 1 CHANGE")
         CONSOLE("  |-- position: ")
         CONSOLE_CRLF(encoder_1_position)
         CONSOLE("  |-- direction: ")
@@ -480,7 +475,7 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
         previous_encoder_2_position = encoder_2_position;
         encoder_2_direction = (int)(encoder_2.getDirection());
 
-        CONSOLE_CRLF("\r\nROTARY ENCODER 2 CHANGE")
+        CONSOLE_CRLF("ROTARY ENCODER 2 CHANGE")
         CONSOLE("  |-- position: ")
         CONSOLE_CRLF(encoder_2_position)
         CONSOLE("  |-- direction: ")
@@ -532,7 +527,7 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
             if(state == STATE_COLOR)
             {
                 current_CPT = (current_CPT == CPT_COLOR_TEMPERATURE) ? CPT_COLOR_HUE : CPT_COLOR_TEMPERATURE;  
-                CONSOLE("\r\nCOLOR PICKER TYPE CHANGE: ")  
+                CONSOLE("COLOR PICKER TYPE CHANGE: ")  
                 CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT])  
             }  
             else if(state == STATE_MAIN || state == STATE_BRIGHTNESS)
@@ -568,30 +563,30 @@ void updatePreferences()
 
 void updateWifiSignal(int8_t rssi)
 {
-    CONSOLE("\r\nUPDATING WIFI SIGNAL: ")
+    CONSOLE("UPDATING WIFI SIGNAL: ")
 
     if(!validWifiConnection)
     {
-        currentWifiSignal = WIFI_SIGNAL_DISCONNECTED;    
+        wifiSignal = WIFI_SIGNAL_DISCONNECTED;    
     }
     else if(rssi < -75)
     {
-        currentWifiSignal = WIFI_SIGNAL_BAD;
+        wifiSignal = WIFI_SIGNAL_BAD;
     } 
     else if(rssi >= -75 && rssi < -55) 
     {
-        currentWifiSignal = WIFI_SIGNAL_GOOD;    
+        wifiSignal = WIFI_SIGNAL_GOOD;    
     }
     else if(rssi >= -55)
     {
-        currentWifiSignal = WIFI_SIGNAL_EXCELLENT;
+        wifiSignal = WIFI_SIGNAL_EXCELLENT;
     } 
 
     CONSOLE_CRLF("OK")
     CONSOLE("  |-- RSSI: ")
     CONSOLE_CRLF(rssi)
     CONSOLE("  |-- Wi-Fi signal: ")
-    CONSOLE_CRLF(wifiSignalString[(uint8_t)currentWifiSignal])
+    CONSOLE_CRLF(wifiSignalString[(uint8_t)wifiSignal])
 }
 
 bool setupWifi()
@@ -605,16 +600,16 @@ bool setupWifi()
     {
         if(millis() > WIFI_CONNECT_TIMEOUT_MS)
         {
-            CONSOLE("\r\nWi-Fi status: ")
+            CONSOLE("Wi-Fi status: ")
             CONSOLE_CRLF("ERROR")
 
             WiFi.disconnect();
 
-            currentWifiSignal = WIFI_SIGNAL_DISCONNECTED;
+            wifiSignal = WIFI_SIGNAL_DISCONNECTED;
             return false;
         }
         
-        CONSOLE("\r\nWi-Fi status: ")
+        CONSOLE("Wi-Fi status: ")
         CONSOLE_CRLF("CONNECTING")
 
         delay(1000);
@@ -622,7 +617,7 @@ bool setupWifi()
 
     rssi = WiFi.RSSI();
 
-    CONSOLE("\r\nWi-Fi status: ")
+    CONSOLE("Wi-Fi status: ")
     CONSOLE_CRLF("OK")
     CONSOLE("  |-- AP name: ")
     CONSOLE_CRLF(WiFi.SSID())
@@ -639,7 +634,7 @@ bool setupWifi()
 // TODO: verify AP disconnection, weather response not comming, etc...
 void syncDateTime()
 {
-    CONSOLE("\r\nSYNCING LOCAL TIME: ")
+    CONSOLE("SYNCING LOCAL TIME: ")
 
     configTime(0, 0, NTP_server_domain); // timezone offset
 
@@ -661,7 +656,7 @@ void updateLocalTime(tm *timeInfo)
         return;
     }
 
-    CONSOLE("\r\nUPDATING LOCAL TIME: ")
+    CONSOLE("UPDATING LOCAL TIME: ")
 
     if(!getLocalTime(timeInfo))
     {
@@ -690,7 +685,89 @@ void httpGETRequest(char* serverName, char *payload) {
     http.end();
 }
 
-void updateWeather()
+/* https://openweathermap.org/weather-conditions
+ */
+void updateWeather(const char* openweatherIconString)
+{
+    if(strcmp(openweatherIconString, "01d") == 0)
+    {
+        weather = WEATHER_CLEAR_SKY_DAY;
+    }
+    else if(strcmp(openweatherIconString, "01n") == 0)
+    {
+        weather = WEATHER_CLEAR_SKY_NIGHT;
+    }
+    else if(strcmp(openweatherIconString, "02d") == 0)
+    {
+        weather = WEATHER_FEW_CLOUDS_DAY;
+    }
+    else if(strcmp(openweatherIconString, "02n") == 0)
+    {
+        weather = WEATHER_FEW_CLOUDS_NIGHT;
+    }
+    else if(strcmp(openweatherIconString, "03d") == 0)
+    {
+        weather = WEATHER_SCATTERED_CLOUDS_DAY;
+    }
+    else if(strcmp(openweatherIconString, "03n") == 0)
+    {
+        weather = WEATHER_SCATTERED_CLOUDS_NIGHT;
+    }
+    else if(strcmp(openweatherIconString, "04d") == 0)
+    {
+        weather = WEATHER_BROKEN_CLOUDS_DAY;
+    }
+    else if(strcmp(openweatherIconString, "04n") == 0)
+    {
+        weather = WEATHER_BROKEN_CLOUDS_NIGHT;
+    }
+    else if(strcmp(openweatherIconString, "09d") == 0)
+    {
+        weather = WEATHER_SHOWER_RAIN_DAY;
+    }
+    else if(strcmp(openweatherIconString, "09n") == 0)
+    {
+        weather = WEATHER_SHOWER_RAIN_NIGHT;
+    }
+    else if(strcmp(openweatherIconString, "10d") == 0)
+    {
+        weather = WEATHER_RAIN_DAY;
+    }
+    else if(strcmp(openweatherIconString, "10n") == 0)
+    {
+        weather = WEATHER_RAIN_NIGHT;
+    }
+    else if(strcmp(openweatherIconString, "11d") == 0)
+    {
+        weather = WEATHER_THUNDERSTORM_DAY;
+    }
+    else if(strcmp(openweatherIconString, "11n") == 0)
+    {
+        weather = WEATHER_THUNDERSTORM_NIGHT;
+    }
+    else if(strcmp(openweatherIconString, "13d") == 0)
+    {
+        weather = WEATHER_SNOW_DAY;
+    }
+    else if(strcmp(openweatherIconString, "13n") == 0)
+    {
+        weather = WEATHER_SNOW_DAY;
+    }
+    else if(strcmp(openweatherIconString, "50d") == 0)
+    {
+        weather = WEATHER_MIST_DAY;
+    }
+    else if(strcmp(openweatherIconString, "50n") == 0)
+    {
+        weather = WEATHER_MIST_NIGHT;
+    }
+    else
+    {
+        weather = WEATHER_NONE;
+    }
+}
+
+void updateWeatherTelemetry()
 {
     char payloadJSON[MAX_HTTP_PAYLOAD_SIZE + 1] = "";
     char serverURL[MAX_SERVER_URL_SIZE + 1] = "";  
@@ -702,10 +779,10 @@ void updateWeather()
     {
         httpGETRequest(serverURL, payloadJSON);
 
-        CONSOLE("\r\nJSON RESPONSE: ");
+        CONSOLE("JSON RESPONSE: ");
         CONSOLE_CRLF(payloadJSON)
 
-        CONSOLE("\r\nJSON DERESIALIZATON: ")
+        CONSOLE("JSON DERESIALIZATON: ")
         DeserializationError error = deserializeJson(doc, payloadJSON);
 
         if(error)
@@ -730,17 +807,24 @@ void updateWeather()
     
     CONSOLE_CRLF("OK");
 
-    temperature_C = doc["main"]["temp"].as<float>() - OPENWEATHER_TEMPERATURE_OFFSET;
-    humidity = doc["main"]["humidity"].as<int8_t>();
+    temperature_C = doc["main"]["temp"].as<float>();
+    humidity = doc["main"]["humidity"].as<uint8_t>();
     windSpeed = doc["wind"]["speed"].as<float>();
+    const char *openweatherIconString = doc["weather"][0]["icon"].as<const char*>();
 
-    CONSOLE_CRLF("\r\nWEATHER UPDATED");
+    updateWeather(openweatherIconString);
+
+    CONSOLE_CRLF("WEATHER UPDATED");
     CONSOLE("  |-- temperature: ");
     CONSOLE_CRLF(temperature_C);
     CONSOLE("  |-- humidity: ");
     CONSOLE_CRLF(humidity);
     CONSOLE("  |-- wind speed: ");
     CONSOLE_CRLF(windSpeed);
+    CONSOLE("  |-- openweather icon string: ");
+    CONSOLE_CRLF(openweatherIconString);
+    CONSOLE("  |-- weather string: ");
+    CONSOLE_CRLF(weatherString[(uint8_t)weather]);
 }
 
 void enableAP()
@@ -748,7 +832,7 @@ void enableAP()
     WiFi.softAP(defaultSoftAP_ssid, defaultSoftAP_pwd);
     server.begin();
 
-    CONSOLE_CRLF("\r\nSOFT AP INFO")
+    CONSOLE_CRLF("SOFT AP INFO")
     CONSOLE("  |-- IP: ")
     CONSOLE_CRLF(WiFi.softAPIP())
     CONSOLE("  |-- SSID: ")
@@ -810,7 +894,7 @@ void saveNewParamsToPreferences(char *buff)
 
         if(index >= WIFI_SSID_MAX_LENGTH)  
         {
-            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            CONSOLE("PARSING PARAMETER: OVERFLOW")
             break;
         }     
     }
@@ -834,7 +918,7 @@ void saveNewParamsToPreferences(char *buff)
 
         if(index >= WIFI_PWD_MAX_LENGTH)  
         {
-            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            CONSOLE("PARSING PARAMETER: OVERFLOW")
             break;
         }     
     }
@@ -858,7 +942,7 @@ void saveNewParamsToPreferences(char *buff)
 
         if(index >= CITY_MAX_LENGTH)  
         {
-            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            CONSOLE("PARSING PARAMETER: OVERFLOW")
             break;
         }     
     }
@@ -882,7 +966,7 @@ void saveNewParamsToPreferences(char *buff)
 
         if(index >= COUNTRY_CODE_MAX_LENGTH)  
         {
-            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            CONSOLE("PARSING PARAMETER: OVERFLOW")
             break;
         }     
     }
@@ -908,7 +992,7 @@ void saveNewParamsToPreferences(char *buff)
 
         if(index >= TIME_ZONE_MAX_LENGTH)  
         {
-            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            CONSOLE("PARSING PARAMETER: OVERFLOW")
             break;
         }    
     }
@@ -933,7 +1017,7 @@ void saveNewParamsToPreferences(char *buff)
 
         if(index >= API_KEY_MAX_LENGTH)  
         {
-            CONSOLE("\r\nPARSING PARAMETER: OVERFLOW")
+            CONSOLE("PARSING PARAMETER: OVERFLOW")
             break;
         }   
     }
@@ -957,8 +1041,8 @@ void handleServerClients()
 
     if(client)
     {
-        CONSOLE_CRLF("\r\nSERVER: NEW CLIENT") 
-        CONSOLE_CRLF("\r\nPACKET:") 
+        CONSOLE_CRLF("SERVER: NEW CLIENT") 
+        CONSOLE_CRLF("PACKET:") 
         CONSOLE_CRLF("- - - - - - - - -")
 
         timeout = millis();
@@ -968,7 +1052,7 @@ void handleServerClients()
             if(millis() - timeout > SERVER_CLIENT_TIMEOUT_MS)
             {
                 CONSOLE_CRLF("- - - - - - - - -")
-                CONSOLE_CRLF("\r\nSERVER: CLIENT TIMEOUT") 
+                CONSOLE_CRLF("SERVER: CLIENT TIMEOUT") 
                 break;
             }
 
@@ -983,7 +1067,7 @@ void handleServerClients()
             if(strstr(buff, "\r\n\r\n") != NULL && !formPacketComplete)
             {
                 CONSOLE_CRLF("- - - - - - - - -")
-                CONSOLE_CRLF("\r\nSERVER: FORM PACKET RECEIVED")
+                CONSOLE_CRLF("SERVER: FORM PACKET RECEIVED")
                 formPacketComplete = true;
                 break;
             }
@@ -1001,10 +1085,10 @@ void handleServerClients()
             )
             {
                 CONSOLE_CRLF("- - - - - - - - -")
-                CONSOLE_CRLF("\r\nSERVER: SETUP PACKET RECEIVED")
+                CONSOLE_CRLF("SERVER: SETUP PACKET RECEIVED")
                 CONSOLE_CRLF("  |-- received all required parameters")
 
-                CONSOLE_CRLF("\r\nSERVER: SAVING NEW PARAMETERS TO PREFERENCES")
+                CONSOLE_CRLF("SERVER: SAVING NEW PARAMETERS TO PREFERENCES")
                 saveNewParamsToPreferences(buff);   
 
                 setupPacketComplete = true;
@@ -1023,16 +1107,16 @@ void handleServerClients()
             client.flush();
             delay(1000);
             client.stop();
-            CONSOLE_CRLF("\r\nSERVER: CLIENT DISCONNECTED")   
+            CONSOLE_CRLF("SERVER: CLIENT DISCONNECTED")   
 
-            CONSOLE_CRLF("\r\nESP32: RESTART")  
+            CONSOLE_CRLF("ESP32: RESTART")  
             ESP.restart();       
         }
         else
         {
             delay(1000);
             client.stop();
-            CONSOLE_CRLF("\r\nSERVER: CLIENT DISCONNECTED")
+            CONSOLE_CRLF("SERVER: CLIENT DISCONNECTED")
         }
     }
 }
@@ -1041,7 +1125,7 @@ void setup()
 {
     delay(DELAY_BEFORE_STARTUP_MS);
     CONSOLE_SERIAL.begin(CONSOLE_BAUDRATE);
-    CONSOLE_CRLF("\r\n~~~ SETUP ~~~")
+    CONSOLE_CRLF("~~~ SETUP ~~~")
 
     loadDefaultValues();
     loadPreferences();
@@ -1055,7 +1139,7 @@ void setup()
     if(setupWifi())
     {
         syncDateTime();
-        updateWeather();
+        updateWeatherTelemetry();
     }
     else
     {
@@ -1064,7 +1148,7 @@ void setup()
     
     state = STATE_MAIN;
 
-    CONSOLE_CRLF("\r\n~~~ LOOP ~~~")
+    CONSOLE_CRLF("~~~ LOOP ~~~")
 }
 
 void loop() 
@@ -1091,7 +1175,7 @@ void loop()
     {
         previousState = state;
 
-        CONSOLE("\r\nSTATE CHANGE: ");
+        CONSOLE("STATE CHANGE: ");
         CONSOLE_CRLF(stateString[(uint8_t)state])
 
         if(state == STATE_COLOR)
@@ -1110,7 +1194,7 @@ void loop()
             clearDisplay();
             
             mainScreenTimer = millis();
-            updateMainScreen(validWifiConnection, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, currentWifiSignal);   
+            updateMainScreen(validWifiConnection, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
         }
         else if(state == STATE_BRIGHTNESS)
         {
@@ -1143,7 +1227,7 @@ void loop()
     {
         previous_CPT = current_CPT;
 
-        CONSOLE("\r\nCPT CHANGE: ");
+        CONSOLE("CPT CHANGE: ");
         CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT])
 
         clearDisplay(); 
@@ -1167,14 +1251,14 @@ void loop()
         updateLocalTime(&timeInfo);
         updateWifiSignal(WiFi.RSSI());
         
-        updateMainScreen(validWifiConnection, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, currentWifiSignal); 
+        updateMainScreen(validWifiConnection, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed,  weather, wifiSignal); 
     }
 
     // update weather
     if(millis() - weatherTimer > UPDATE_WEATHER_MS && state == STATE_MAIN && validWifiConnection)
     {
         weatherTimer = millis();
-        updateWeather();
+        updateWeatherTelemetry();
     }
 
     if(!validWifiConnection)

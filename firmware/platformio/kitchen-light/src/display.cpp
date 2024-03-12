@@ -12,12 +12,13 @@
 #include <WiFi.h>
 #include <Preferences.h>
 #include "kelvin2RGB.h"
+#include "icons.h"
 
 Adafruit_ST7789 display = Adafruit_ST7789(DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_RST_PIN);
 
 void setupDisplay()
 {
-    CONSOLE("\r\nDisplay: ")
+    CONSOLE("Display: ")
     display.init(DISPLAY_WIDTH, DISPLAY_HEIGHT);       
     display.setRotation(DISPLAY_ROTATION_DEGREE/90);
     display.invertDisplay(false); 
@@ -45,7 +46,7 @@ void loadDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t
     display.setTextWrap(false);
     display.print("COLOR TEMPERATURE");
 
-    CONSOLE_CRLF("\r\nDISPLAY: COLOR TEMPERATURE LOADED")
+    CONSOLE_CRLF("DISPLAY: COLOR TEMPERATURE LOADED")
 
     updateDisplayColorTemperature(currentColorTemperatureIndex, previousColorTemperatureIndex);
 }
@@ -91,7 +92,7 @@ void loadDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColorHu
     display.setTextWrap(false);
     display.print("COLOR HUE");
 
-    CONSOLE_CRLF("\r\nDISPLAY: COLOR HUE LOADED")
+    CONSOLE_CRLF("DISPLAY: COLOR HUE LOADED")
 
     updateDisplayColorHue(currentColorHueIndex, previousColorHueIndex);
 }
@@ -107,7 +108,7 @@ void loadDisplayBrightness(uint8_t brightness)
     display.setTextWrap(false);
     display.print("BRIGHTNESS");
 
-    CONSOLE_CRLF("\r\nDISPLAY: BRIGHTNESS LOADED")
+    CONSOLE_CRLF("DISPLAY: BRIGHTNESS LOADED")
 
     updateDisplayBrightness(brightness);
 }
@@ -222,7 +223,7 @@ void updateDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColor
     display.fillTriangle(PICKER_OFFSET_X + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
     display.fillTriangle(PICKER_OFFSET_X + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
    
-    CONSOLE_CRLF("\r\nDISPLAY: COLOR HUE UPDATED")
+    CONSOLE_CRLF("DISPLAY: COLOR HUE UPDATED")
 }
 
 void updateDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t previousColorTemperatureIndex)
@@ -230,7 +231,7 @@ void updateDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16
     display.fillTriangle(PICKER_OFFSET_X + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
     display.fillTriangle(PICKER_OFFSET_X + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
    
-    CONSOLE_CRLF("\r\nDISPLAY: COLOR TEMPERATURE UPDATED")
+    CONSOLE_CRLF("DISPLAY: COLOR TEMPERATURE UPDATED")
 }
 
 void updateDisplayBrightness(uint8_t brightness)
@@ -247,7 +248,7 @@ void updateDisplayBrightness(uint8_t brightness)
         display.drawFastVLine(PICKER_OFFSET_X + 2 + i, PICKER_OFFSET_Y + 2, PICKER_HEIGHT - 4, RGB888_TO_RGB565(0, 0, 0));
     } 
 
-    CONSOLE_CRLF("\r\nDISPLAY: BRIGHTNESS UPDATED")
+    CONSOLE_CRLF("DISPLAY: BRIGHTNESS UPDATED")
 }
 
 void drawWifiSignalUndefined()
@@ -496,8 +497,8 @@ void updateMinute(uint8_t minute, bool invalid = false)
 
 void updateTemperature(float temperature, bool invalid = false)
 {
-    display.fillRect(0, display.height() - 39, display.width() * 1/3 - 27, 39, RGB888_TO_RGB565(0, 0, 0));
-    display.setCursor(8, display.height() - 26);
+    display.fillRect(0, display.height() - 39, display.width() * 1/4 - 22, 39, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(5, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
@@ -506,16 +507,12 @@ void updateTemperature(float temperature, bool invalid = false)
     {
         display.print((int32_t)round(temperature));
     }
-    else
-    {
-        display.print('-');
-    }
 }
 
 void updateDate(uint8_t day, uint8_t month, uint16_t year, bool invalid = false)
 {
-    display.fillRect(0, 0, display.width() - 65, 32, RGB888_TO_RGB565(0, 0, 0));
-    display.setCursor(6, 6);
+    display.fillRect(0, 0, display.width() - 64, 40, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(5, 6);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
@@ -527,17 +524,13 @@ void updateDate(uint8_t day, uint8_t month, uint16_t year, bool invalid = false)
         display.print(monthNames[month]);
         display.print(' '); 
         display.print(year); 
-    }
-    else
-    {
-        display.print("-");
-    }   
+    } 
 }
 
 void updateHumidity(uint8_t humidity, bool invalid = false)
 {
-    display.fillRect(display.width() * 1/3 + 1, display.height() - 39, display.width() * 1/3 - 13, 39, RGB888_TO_RGB565(0, 0, 0));
-    display.setCursor(display.width() * 1/3 + 8, display.height() - 26);
+    display.fillRect(display.width() * 1/4 + 1, display.height() - 39, display.width() * 1/4 - 22, 39, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(display.width() * 1/4 + 6, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
@@ -546,16 +539,12 @@ void updateHumidity(uint8_t humidity, bool invalid = false)
     {
         display.print(humidity); 
     }
-    else
-    {
-        display.print("-");
-    } 
 }
 
 void updateWindSpeed(float windGust, bool invalid = false)
 {
-    display.fillRect(display.width() * 2/3 + 1, display.height() - 39, display.width() * 1/3 - 39, 39, RGB888_TO_RGB565(0, 0, 0));
-    display.setCursor(display.width() * 2/3 + 8, display.height() - 26);
+    display.fillRect(display.width() * 2/4 + 1, display.height() - 39, display.width() * 1/4 - 22, 39, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(display.width() * 2/4 + 6, display.height() - 26);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(3, 3);
     display.setTextWrap(false);
@@ -564,42 +553,57 @@ void updateWindSpeed(float windGust, bool invalid = false)
     {
         display.print((uint32_t)round(windGust));
     }
-    else
+}
+
+void updateWeather(WEATHER weather)
+{
+    display.fillRect(display.width() * 3/4 + 1, display.height() - 39, display.width() - 1, 39, RGB888_TO_RGB565(0, 0, 0)); 
+
+    /*if(weather == WEATHER_CLEAR_SKY_DAY)
     {
-        display.print("-");
-    } 
+        display.drawRGBBitmap(display.width() - 57, display.height() - 36, 01d_icon, ICON_WIDTH, ICON_HEIGHT);
+    }
+    else if(weather == WEATHER_CLEAR_SKY_NIGHT)
+    {
+        display.drawRGBBitmap(display.width() - 57, display.height() - 36, 01n_icon, ICON_WIDTH, ICON_HEIGHT);
+    }*/
 }
 
 void drawFixedParts()
 {
     display.drawFastHLine(0, display.height() - 40, display.width(), RGB888_TO_RGB565(255, 255, 255));
     display.drawFastHLine(0, 40, display.width(), RGB888_TO_RGB565(255, 255, 255));
-    display.drawFastVLine(display.width() * 1/3, display.height() - 40, 40, RGB888_TO_RGB565(255, 255, 255));
-    display.drawFastVLine(display.width() * 2/3, display.height() - 40, 40, RGB888_TO_RGB565(255, 255, 255));
+    display.drawFastVLine(display.width() * 1/4, display.height() - 40, 40, RGB888_TO_RGB565(255, 255, 255));
+    display.drawFastVLine(display.width() * 2/4, display.height() - 40, 40, RGB888_TO_RGB565(255, 255, 255));
+    display.drawFastVLine(display.width() * 3/4, display.height() - 40, 40, RGB888_TO_RGB565(255, 255, 255));
 
-    display.setCursor(display.width() * 1/3 - 13, display.height() - 36);
+    // °C
+    display.setCursor(display.width() * 1/4 - 13, display.height() - 36);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(2, 2);
     display.setTextWrap(false);
     display.print("C");
-    display.fillCircle(display.width() * 1/3 - 20, display.height() - 32, 2, RGB888_TO_RGB565(255, 255, 255));
-    display.fillCircle(display.width() * 1/3 - 20, display.height() - 32, 1, RGB888_TO_RGB565(0, 0, 0));
 
-    display.setCursor(display.width() * 2/3 - 13, display.height() - 36);
+    display.fillCircle(display.width() * 1/4 - 18, display.height() - 32, 2, RGB888_TO_RGB565(255, 255, 255));
+    display.fillCircle(display.width() * 1/4 - 18, display.height() - 32, 1, RGB888_TO_RGB565(0, 0, 0));
+
+    // %
+    display.setCursor(display.width() * 2/4 - 13, display.height() - 36);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(2, 2);
     display.setTextWrap(false);
     display.print("%");
 
-    display.setCursor(display.width() - 13, display.height() - 38);
+    // m/s
+    display.setCursor(display.width() * 3/4 - 13, display.height() - 38);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(2, 2);
     display.setTextWrap(false);
     display.print("m");
 
-    display.drawFastHLine(display.width() - 13, display.height() - 22, 11, RGB888_TO_RGB565(255, 255, 255));
+    display.drawFastHLine(display.width() * 3/4 - 13, display.height() - 22, 11, RGB888_TO_RGB565(255, 255, 255));
 
-    display.setCursor(display.width() - 13, display.height() - 22);
+    display.setCursor(display.width() * 3/4 - 13, display.height() - 22);
     display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
     display.setTextSize(2, 2);
     display.setTextWrap(false);
@@ -608,7 +612,7 @@ void drawFixedParts()
 
 void drawSetupText()
 {
-    char buff[512] = "";
+    char buff[256] = "";
     
     display.fillRect(0, 41, display.width(), display.height() - 82, RGB888_TO_RGB565(0, 0, 0));
     display.setCursor(0, 47);
@@ -634,7 +638,7 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
     display.setTextWrap(false);
     display.print("FACTORY RESET");
 
-    CONSOLE_CRLF("\r\nDISPLAY: FACTORY RESET LOADED")
+    CONSOLE_CRLF("DISPLAY: FACTORY RESET LOADED")
 
     for(uint16_t i = 0; i < PICKER_WIDTH - 4; i++)
     {
@@ -658,25 +662,27 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
     tempVal += 1;
     preferences->putUInt("firstRun", tempVal);
 
-    CONSOLE_CRLF("\r\nESP32: RESTART") 
+    CONSOLE_CRLF("ESP32: RESTART") 
     ESP.restart();
 }
 
-void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WIFI_SIGNAL wifiSignal)
+void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WEATHER weather, WIFI_SIGNAL wifiSignal)
 {
+    static bool doubledotVisible = false;
+    
     static uint8_t prevHour = 255; 
     static uint8_t prevMinute = 255;
     static uint8_t prevDay = 255;
     static uint8_t prevMonth = 255;
     static uint16_t prevYear = 9999;
-    static float prevTemperature = 273.15;  
+    static float prevTemperature = -273.15;  
     static uint8_t prevHumidity = 255;
     static float prevWindSpeed = -1.0;
     static WIFI_SIGNAL prevWifiSignal = WIFI_SIGNAL_NONE;
-    static bool doubledotVisible = false;
-    static bool previousValidWifiConnection = true;
+    static bool previousValidWifiConnection = !validWifiConnection; // TODO: verify, replaced false with !validWifiConnection
+    static WEATHER prevWeather = WEATHER_NONE;
 
-    CONSOLE_CRLF("\r\nDISPLAY: MAIN UPDATED")
+    CONSOLE_CRLF("DISPLAY: MAIN UPDATED")
 
     if(forceAll)
     {
@@ -762,6 +768,19 @@ void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uin
         CONSOLE_CRLF("  |-- WIND SPEED UPDATED (INVALID)")      
     }
 
+    if((weather != prevWeather || forceAll) && validWifiConnection)
+    {
+        updateWeather(weather);
+        prevWeather = weather;
+        CONSOLE_CRLF("  |-- WEATHER UPDATED")
+
+    }
+    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    {
+        updateWindSpeed(windSpeed, true); 
+        CONSOLE_CRLF("  |-- WIND SPEED UPDATED (INVALID)")      
+    }
+
     if((day != prevDay || month != prevMonth || year != prevYear || forceAll) && validWifiConnection)
     {
         updateDate(day, month, year);
@@ -785,5 +804,5 @@ void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uin
 void clearDisplay()
 {
     display.fillScreen(RGB888_TO_RGB565(0, 0, 0));
-    CONSOLE_CRLF("\r\nDISPLAY: CLEARED")
+    CONSOLE_CRLF("DISPLAY: CLEARED")
 }
