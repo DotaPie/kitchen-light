@@ -12,7 +12,7 @@
 #include <WiFi.h>
 #include <Preferences.h>
 #include "kelvin2RGB.h"
-#include "icons.h"
+#include "images.h"
 
 Adafruit_ST7789 display = Adafruit_ST7789(DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_RST_PIN);
 
@@ -555,18 +555,109 @@ void updateWindSpeed(float windGust, bool invalid = false)
     }
 }
 
+/* Draw RGB565 picture from uint8 *array with added option of filtering out completely one color.
+ * For example, if color of pixel is black, dont draw pixel at all. 
+ * This will allow custom background color defined in code.
+ */
+void drawRGB565_filtered(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint16_t *image, uint16_t filteredColor)
+{
+    display.startWrite();
+    
+    for (int16_t i = 0; i < h; i++, y++) 
+    {
+        for (int16_t j = 0; j < w; j++) 
+        {
+            if(image[i * w + j] != filteredColor)
+            {
+                display.writePixel(x + j, y, image[i * w + j]);
+            }
+        }
+    }
+
+    display.endWrite();  
+}
+
 void updateWeather(WEATHER weather)
 {
     display.fillRect(display.width() * 3/4 + 1, display.height() - 39, display.width() - 1, 39, RGB888_TO_RGB565(0, 0, 0)); 
 
-    /*if(weather == WEATHER_CLEAR_SKY_DAY)
+    switch(weather)
     {
-        display.drawRGBBitmap(display.width() - 57, display.height() - 36, 01d_icon, ICON_WIDTH, ICON_HEIGHT);
+        case WEATHER_CLEAR_SKY_DAY:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_01d, RGB888_TO_RGB565(0, 0, 0));
+            break;
+
+        case WEATHER_CLEAR_SKY_NIGHT:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_01n, RGB888_TO_RGB565(0, 0, 0));
+            break;
+        
+        case WEATHER_FEW_CLOUDS_DAY:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_02d, RGB888_TO_RGB565(0, 0, 0));
+            break;
+
+        case WEATHER_FEW_CLOUDS_NIGHT:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_02n, RGB888_TO_RGB565(0, 0, 0));
+            break;
+            
+        case WEATHER_SCATTERED_CLOUDS_DAY:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_03d, RGB888_TO_RGB565(0, 0, 0));
+            break;
+
+        case WEATHER_SCATTERED_CLOUDS_NIGHT:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_03n, RGB888_TO_RGB565(0, 0, 0));
+            break;
+            
+        case WEATHER_BROKEN_CLOUDS_DAY:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_04d, RGB888_TO_RGB565(0, 0, 0));
+            break;
+
+        case WEATHER_BROKEN_CLOUDS_NIGHT:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_04n, RGB888_TO_RGB565(0, 0, 0));
+            break;
+            
+        case WEATHER_SHOWER_RAIN_DAY:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_09d, RGB888_TO_RGB565(0, 0, 0));
+            break;
+
+        case WEATHER_SHOWER_RAIN_NIGHT:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_09n, RGB888_TO_RGB565(0, 0, 0));
+            break;
+            
+        case WEATHER_RAIN_DAY:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_10d, RGB888_TO_RGB565(0, 0, 0));
+            break;
+
+        case WEATHER_RAIN_NIGHT:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_10n, RGB888_TO_RGB565(0, 0, 0));
+            break;
+            
+        case WEATHER_THUNDERSTORM_DAY:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_11d, RGB888_TO_RGB565(0, 0, 0));
+            break;
+
+        case WEATHER_THUNDERSTORM_NIGHT:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_11n, RGB888_TO_RGB565(0, 0, 0));
+            break;
+            
+        case WEATHER_SNOW_DAY:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_13d, RGB888_TO_RGB565(0, 0, 0));
+            break;
+
+        case WEATHER_SNOW_NIGHT:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_13n, RGB888_TO_RGB565(0, 0, 0));
+            break;
+            
+        case WEATHER_MIST_DAY:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_50d, RGB888_TO_RGB565(0, 0, 0));
+            break;
+
+        case WEATHER_MIST_NIGHT:
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_50n, RGB888_TO_RGB565(0, 0, 0));
+            break;
+
+        default:
+            break;
     }
-    else if(weather == WEATHER_CLEAR_SKY_NIGHT)
-    {
-        display.drawRGBBitmap(display.width() - 57, display.height() - 36, 01n_icon, ICON_WIDTH, ICON_HEIGHT);
-    }*/
 }
 
 void drawFixedParts()

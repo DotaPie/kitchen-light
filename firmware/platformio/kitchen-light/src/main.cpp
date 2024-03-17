@@ -685,7 +685,9 @@ void httpGETRequest(char* serverName, char *payload) {
     http.end();
 }
 
-/* https://openweathermap.org/weather-conditions
+/* Instead of analyzing description parameter of weather, we simply save icon parameter, which
+ * exactly describes what kind of picture shall we use for given weather.
+ * https://openweathermap.org/weather-conditions
  */
 void updateWeather(const char* openweatherIconString)
 {
