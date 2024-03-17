@@ -584,75 +584,75 @@ void updateWeather(WEATHER weather)
     switch(weather)
     {
         case WEATHER_CLEAR_SKY_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_01d, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
         case WEATHER_CLEAR_SKY_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_01n, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01n, RGB888_TO_RGB565(0, 0, 0));
             break;
         
         case WEATHER_FEW_CLOUDS_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_02d, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
         case WEATHER_FEW_CLOUDS_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_02n, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
         case WEATHER_SCATTERED_CLOUDS_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_03d, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
         case WEATHER_SCATTERED_CLOUDS_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_03n, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
         case WEATHER_BROKEN_CLOUDS_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_04d, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
         case WEATHER_BROKEN_CLOUDS_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_04n, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
         case WEATHER_SHOWER_RAIN_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_09d, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
         case WEATHER_SHOWER_RAIN_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_09n, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
         case WEATHER_RAIN_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_10d, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
         case WEATHER_RAIN_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_10n, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
         case WEATHER_THUNDERSTORM_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_11d, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
         case WEATHER_THUNDERSTORM_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_11n, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
         case WEATHER_SNOW_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_13d, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
         case WEATHER_SNOW_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_13n, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
         case WEATHER_MIST_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_50d, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
         case WEATHER_MIST_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 36, IMAGE_WIDTH, IMAGE_HEIGHT, image_50n, RGB888_TO_RGB565(0, 0, 0));
+            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50n, RGB888_TO_RGB565(0, 0, 0));
             break;
 
         default:
