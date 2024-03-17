@@ -770,7 +770,7 @@ void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uin
     static uint8_t prevHumidity = 255;
     static float prevWindSpeed = -1.0;
     static WIFI_SIGNAL prevWifiSignal = WIFI_SIGNAL_NONE;
-    static bool previousValidWifiConnection = !validWifiConnection; // TODO: verify, replaced false with !validWifiConnection
+    static bool previousValidWifiConnection = !validWifiConnection;
     static WEATHER prevWeather = WEATHER_NONE;
 
     CONSOLE_CRLF("DISPLAY: MAIN UPDATED")

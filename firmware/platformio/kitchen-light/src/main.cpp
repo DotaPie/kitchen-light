@@ -630,7 +630,6 @@ bool setupWifi()
     return true;
 }
 
-// TODO: fix formatting issue from URL of special symbols such as '/'
 // TODO: verify AP disconnection, weather response not comming, etc...
 void syncDateTime()
 {
