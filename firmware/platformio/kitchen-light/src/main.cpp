@@ -485,8 +485,10 @@ void updatePreferences()
     }
 }
 
-void updateWifiSignal(int8_t rssi)
+void updateWifiSignal()
 {
+    int8_t rssi = WiFi.RSSI();
+
     CONSOLE("UPDATING WIFI SIGNAL: ")
 
     if(!validWifiConnection)
@@ -549,7 +551,7 @@ bool setupWifi()
     CONSOLE_CRLF(WiFi.localIP())
 
     validWifiConnection = true;
-    updateWifiSignal(rssi);
+    updateWifiSignal();
 
     return true;
 }
@@ -1081,6 +1083,9 @@ void loop()
     struct tm timeInfo;
     static uint16_t dayOfTimeSync = 0;
     static bool readyToTimeSync = true;
+    static uint32_t noInternetTimeout = millis();
+    static uint32_t softApTimeout = millis();
+    static uint32_t offlineMode = false;
 
     // handle inputs
     checkRotaryEncoders(&rotary_encoder_timer);
@@ -1110,12 +1115,12 @@ void loop()
             // in case there has been any changes to preferences
             updatePreferences();
             updateLocalTime(&timeInfo);
-            updateWifiSignal(WiFi.RSSI());
+            updateWifiSignal();
 
             clearDisplay();
             
             mainScreenTimer = millis();
-            updateMainScreen(validWifiConnection, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
+            updateMainScreen(offlineMode, validWifiConnection, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
         }
         else if(state == STATE_BRIGHTNESS)
         {
@@ -1165,14 +1170,14 @@ void loop()
         }                
     }
 
-    // update screen
+    // update time, wifi signal and main screen (to change double dot visibility) once a second
     if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE_MAIN)
     {
         mainScreenTimer = millis();
         updateLocalTime(&timeInfo);
-        updateWifiSignal(WiFi.RSSI());
+        updateWifiSignal();
         
-        updateMainScreen(validWifiConnection, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed,  weather, wifiSignal); 
+        updateMainScreen(offlineMode, validWifiConnection, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal); 
     }
 
     // update weather
@@ -1182,18 +1187,30 @@ void loop()
         updateWeatherTelemetry();
     }
 
-    if(!validWifiConnection)
+    // switch to offline mode
+    if(!offlineMode && millis() - softApTimeout > SOFT_AP_TIMEOUT_MS)
+    {
+        offlineMode = true;
+
+        WiFi.disconnect();
+        WiFi.mode(WIFI_OFF);
+    }
+
+    // allow clients to connect to soft AP
+    if(!validWifiConnection && !offlineMode)
     {
         handleServerClients();
     }
 
-    if(readyToTimeSync && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR)
+    // sync device local time with timeserver
+    if(readyToTimeSync && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && validWifiConnection)
     {
         readyToTimeSync = false;
         dayOfTimeSync = timeInfo.tm_mday;
         syncDateTime();
     }
 
+    // tracks change of day
     if(dayOfTimeSync != timeInfo.tm_mday)
     {
         readyToTimeSync = true;    

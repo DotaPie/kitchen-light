@@ -27,7 +27,7 @@ void updateDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16
 
 void loadAndExecuteFactoryReset(Preferences *preferences);
 
-void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WEATHER weather, WIFI_SIGNAL wifiSingal);
+void updateMainScreen(bool offlineMode, bool validWifiConnection, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WEATHER weather, WIFI_SIGNAL wifiSingal);
 void clearDisplay();
 
 #endif

@@ -701,7 +701,7 @@ void drawFixedParts()
     display.print("s");
 }
 
-void drawSetupText()
+void drawSetupText(bool offlineMode)
 {
     char buff[256] = "";
     
@@ -714,7 +714,15 @@ void drawSetupText()
     char tempIP[32] = "";
     WiFi.softAPIP().toString().toCharArray(tempIP, 32);
 
-    sprintf(buff, "1) Connect the the Wi-Fi:\r\n  -> %s\r\n\r\n2) Enter password:\r\n  -> %s\r\n\r\n3) Enter to browser:\r\n  -> http://%s", defaultSoftAP_ssid, defaultSoftAP_pwd, tempIP);
+    if(!offlineMode)
+    {
+        sprintf(buff, "1) Connect the the Wi-Fi:\r\n  -> %s\r\n\r\n2) Enter password:\r\n  -> %s\r\n\r\n3) Enter to browser:\r\n  -> http://%s", defaultSoftAP_ssid, defaultSoftAP_pwd, tempIP);
+    }
+    else
+    {
+        strcpy(buff, "Offline mode. Restart device to enable configuration mode.");     
+    }
+    
     display.print(buff);        
 }
 
@@ -757,7 +765,7 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
     ESP.restart();
 }
 
-void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WEATHER weather, WIFI_SIGNAL wifiSignal)
+void updateMainScreen(bool offlineMode, bool validWifiConnection, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WEATHER weather, WIFI_SIGNAL wifiSignal)
 {
     static bool doubledotVisible = false;
     
@@ -782,7 +790,7 @@ void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uin
 
     if((previousValidWifiConnection || forceAll) && !validWifiConnection)
     {
-        drawSetupText();
+        drawSetupText(offlineMode);
     }
 
     if((hour != prevHour || forceAll) && validWifiConnection)
