@@ -998,7 +998,6 @@ void saveNewParamsToPreferences(char *buff)
         }    
     }
 
-    // daylight saving enabled
     ptr = strstr(buff, "api-key");
     memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
     index = 0;
