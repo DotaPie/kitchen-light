@@ -40,14 +40,13 @@ char city[CITY_MAX_LENGTH + 1] = "";
 char countryCode[COUNTRY_CODE_MAX_LENGTH + 1] = "";
 char openWeatherAPI_key[API_KEY_MAX_LENGTH + 1] = "";
 
-// switch and encoder globals
+// encoder globals
 RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 RotaryEncoder encoder_2 = RotaryEncoder(RE_2_IN1_PIN, RE_2_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
 long previous_encoder_1_position = 0; 
 long previous_encoder_2_position = 0;
 uint32_t encoder_1_switch_debounce_timer = 0;
 uint32_t encoder_2_switch_debounce_timer = 0;
-uint8_t previousSwitch_1, previousSwitch_2; // will be loaded in setup -> loadDefaults();
 
 // weather telemetry globals
 float temperature_C = -273.15;
@@ -150,32 +149,11 @@ void loadPreferences()
 
 void update_LED_strip()
 {
+    CRGB color = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);
+    
     for(uint16_t i = 0; i < LED_STRIP_LED_COUNT; i++)
     {
-        LED_stripArray[i] = CRGB(0, 0, 0);    
-    }
-
-    // zone 1 + 3
-    if(previousSwitch_1 == LOW)
-    {
-        for(uint16_t i = ZONE_1_LED_START_INDEX; i <= ZONE_1_LED_END_INDEX; i++)
-        {
-            LED_stripArray[i] = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);     
-        }
-
-        for(uint16_t i = ZONE_3_LED_START_INDEX; i <= ZONE_3_LED_END_INDEX; i++)
-        {
-            LED_stripArray[i] = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);    
-        }
-    }
-
-    // zone 2
-    if(previousSwitch_2 == LOW)
-    {
-        for(uint16_t i = ZONE_2_LED_START_INDEX; i <= ZONE_2_LED_END_INDEX; i++)
-        {
-            LED_stripArray[i] = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);     
-        }
+        LED_stripArray[i] = color;     
     }
 
     FastLED.show();
@@ -239,60 +217,6 @@ void setupRotaryEncoders()
     attachInterrupt(digitalPinToInterrupt(RE_2_IN2_PIN), checkRotaryEncoderPosition_2, CHANGE);
     pinMode(RE_2_SW_PIN, INPUT_PULLUP);
     CONSOLE_CRLF("OK")
-}
-
-void setupSwitches()
-{
-    CONSOLE("Switches: ")   
-    pinMode(SWITCH_1_PIN, INPUT_PULLUP);
-    pinMode(SWITCH_2_PIN, INPUT_PULLUP);
-    CONSOLE_CRLF("OK") 
-
-    CONSOLE("  |-- Switch state #1: ") 
-    CONSOLE_CRLF(digitalRead(SWITCH_1_PIN) == LOW ? "ON" : "OFF")
-
-    CONSOLE("  |-- Switch state #2: ") 
-    CONSOLE_CRLF(digitalRead(SWITCH_2_PIN) == LOW ? "ON" : "OFF")
-}
-
-void loadDefaultValues()
-{
-    CONSOLE("Loading default values: ")
-
-    previousSwitch_1 = digitalRead(SWITCH_1_PIN);
-    previousSwitch_2 = digitalRead(SWITCH_2_PIN);
-
-    CONSOLE_CRLF("OK")
-}
-
-void checkSwitches()
-{
-    bool switch_1 = digitalRead(SWITCH_1_PIN);
-    bool switch_2 = digitalRead(SWITCH_2_PIN);
-    static uint32_t switch_1_debounce_timer = 0;
-    static uint32_t switch_2_debounce_timer = 0;
-
-    if(switch_1 != previousSwitch_1 && millis() - switch_1_debounce_timer > SWITCH_DEBOUNCE_TIMER_MS)
-    {
-        switch_1_debounce_timer = millis();
-        previousSwitch_1 = switch_1;
-
-        update_LED_strip();
-
-        CONSOLE("SWITCH_1 STATE CHANGE: ");
-        CONSOLE_CRLF(switch_1 == LOW ? "ON" : "OFF");
-    }
-
-    if(switch_2 != previousSwitch_2 && millis() - switch_2_debounce_timer > SWITCH_DEBOUNCE_TIMER_MS)
-    {
-        switch_2_debounce_timer = millis();
-        previousSwitch_2 = switch_2;
-
-        update_LED_strip();
-
-        CONSOLE("SWITCH_2 STATE CHANGE: ");
-        CONSOLE_CRLF(switch_2 == LOW ? "ON" : "OFF");
-    }
 }
 
 void updateBrightness(int direction)
@@ -1127,11 +1051,9 @@ void setup()
     CONSOLE_SERIAL.begin(CONSOLE_BAUDRATE);
     CONSOLE_CRLF("~~~ SETUP ~~~")
 
-    loadDefaultValues();
     loadPreferences();
     setupDisplay();
     setupRotaryEncoders();
-    setupSwitches();
     setup_LED_strip();
     CONSOLE_CRLF()
 
@@ -1161,7 +1083,6 @@ void loop()
     static bool readyToTimeSync = true;
 
     // handle inputs
-    checkSwitches();
     checkRotaryEncoders(&rotary_encoder_timer);
 
     // auto state change to main

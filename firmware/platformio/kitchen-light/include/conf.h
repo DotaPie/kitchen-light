@@ -9,20 +9,8 @@
 
 #ifdef DEVELOPMENT
 #define LED_STRIP_LED_COUNT 3
-#define ZONE_1_LED_START_INDEX 0
-#define ZONE_1_LED_END_INDEX 0
-#define ZONE_2_LED_START_INDEX 1
-#define ZONE_2_LED_END_INDEX 1 
-#define ZONE_3_LED_START_INDEX 2 
-#define ZONE_3_LED_END_INDEX 2
 #elif
 #define LED_STRIP_LED_COUNT 213
-#define ZONE_1_LED_START_INDEX 0
-#define ZONE_1_LED_END_INDEX ?
-#define ZONE_2_LED_START_INDEX ?
-#define ZONE_2_LED_END_INDEX ?
-#define ZONE_3_LED_START_INDEX ? 
-#define ZONE_3_LED_END_INDEX 212
 #endif
 
 #define LED_STRIP_TYPE WS2812B
@@ -41,9 +29,6 @@
 #define PICKER_WIDTH 288 // number should be divisible by 6, or behaviour might vary
 #define MAIN_SCREEN_TIMER_MS 1000 // do not change !!! used by doubledot animation, wi-fi check, etc.
 #define ANY_SETTING_SCREEN_TIMER_MS 2000
-
-// switches
-#define SWITCH_DEBOUNCE_TIMER_MS 5
 
 // encoders
 #define ROTARY_ENCODER_STEPS 30

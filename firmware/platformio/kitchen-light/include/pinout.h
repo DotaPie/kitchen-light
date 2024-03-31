@@ -18,10 +18,6 @@
 #define DISPLAY_RST_PIN 9
 #define DISPLAY_DC_PIN 8
 
-// switches
-#define SWITCH_1_PIN 15
-#define SWITCH_2_PIN 7
-
 // random seed
 #define UNCONNECTED_ANALOG_PIN 6
 
