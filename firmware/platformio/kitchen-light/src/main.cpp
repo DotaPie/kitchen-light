@@ -1120,7 +1120,7 @@ void loop()
             clearDisplay();
             
             mainScreenTimer = millis();
-            updateMainScreen(offlineMode, validWifiConnection, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
+            updateMainScreen(validWifiConnection, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
         }
         else if(state == STATE_BRIGHTNESS)
         {
@@ -1177,7 +1177,7 @@ void loop()
         updateLocalTime(&timeInfo);
         updateWifiSignal();
         
-        updateMainScreen(offlineMode, validWifiConnection, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal); 
+        updateMainScreen(validWifiConnection, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal); 
     }
 
     // update weather
@@ -1188,6 +1188,7 @@ void loop()
     }
 
     // switch to offline mode
+    // TODO: completely different screen displayed in offline mode
     if(!offlineMode && millis() - softApTimeout > SOFT_AP_TIMEOUT_MS)
     {
         offlineMode = true;
