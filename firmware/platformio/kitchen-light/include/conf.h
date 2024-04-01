@@ -58,6 +58,7 @@
 #define YEAR_OFFSET 1900
 #define TIME_ZONE_MAX_LENGTH 64 
 #define WHEN_TO_TIME_SYNC_HOUR 4 // sync time once a day on start of this hour
+#define FAILED_TO_SYNC_DATE_TIME_TIMEOUT_MS 60000
 
 // weather
 #define CITY_MAX_LENGTH 64

@@ -21,7 +21,8 @@
 // core globals
 STATE state = STATE_MAIN; 
 STATE previousState = STATE_NONE;
-bool validWifiConnection = false;
+bool validWifiConnection = false; // true if connected to wi-fi, internet connection does not matter here
+bool validInternetConnection = false; // true if connected to wi-fi and to internet
 Preferences preferences;
 
 // preferences globals: will be loaded in setup -> loadPreferences();
@@ -557,14 +558,27 @@ bool setupWifi()
 }
 
 // TODO: verify AP disconnection, weather response not comming, etc...
-void syncDateTime()
+void syncDateTime(bool waitForSync)
 {
     CONSOLE("SYNCING LOCAL TIME: ")
 
-    configTime(0, 0, NTP_server_domain); // timezone offset
+    configTime(0, 0, NTP_server_domain); // sync datetime
+
+    if(!waitForSync)
+    {
+        return;
+    }
 
     struct tm timeInfo;
-    while(!getLocalTime(&timeInfo)); // sometimes this might take while
+    while(!getLocalTime(&timeInfo))
+    {
+        delay(10); 
+    }
+}
+
+void setTimezone()
+{
+    CONSOLE("SETTING TIME ZONE: ")
 
     setenv("TZ", timeZone, 1);
     tzset();
@@ -576,11 +590,6 @@ void syncDateTime()
 
 void updateLocalTime(tm *timeInfo)
 {
-    if (!validWifiConnection)
-    {
-        return;
-    }
-
     CONSOLE("UPDATING LOCAL TIME: ")
 
     if(!getLocalTime(timeInfo))
@@ -1062,7 +1071,8 @@ void setup()
     // we could do this before loading animation of LED strip, but on single core CPUs this could cause issues
     if(setupWifi())
     {
-        syncDateTime();
+        syncDateTime(true);
+        setTimezone();
         updateWeatherTelemetry();
     }
     else
@@ -1082,10 +1092,13 @@ void loop()
     static uint32_t rotary_encoder_timer = 0;
     struct tm timeInfo;
     static uint16_t dayOfTimeSync = 0;
-    static bool readyToTimeSync = true;
     static uint32_t noInternetTimeout = millis();
     static uint32_t softApTimeout = millis();
     static uint32_t offlineMode = false;
+    static bool waitingForValidDateTime = false;
+
+    static bool failedToSyncDateTime = false;
+    static uint32_t failedToSyncDateTimeTimer = 0;
 
     // handle inputs
     checkRotaryEncoders(&rotary_encoder_timer);
@@ -1114,13 +1127,17 @@ void loop()
         {
             // in case there has been any changes to preferences
             updatePreferences();
-            updateLocalTime(&timeInfo);
-            updateWifiSignal();
 
+            if(!waitingForValidDateTime)
+            {
+                getLocalTime(&timeInfo);
+            }
+
+            updateWifiSignal();
             clearDisplay();
             
             mainScreenTimer = millis();
-            updateMainScreen(validWifiConnection, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
+            updateMainScreen(validWifiConnection, true, true, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
         }
         else if(state == STATE_BRIGHTNESS)
         {
@@ -1144,6 +1161,7 @@ void loop()
         {
             clearDisplay();
             loadAndExecuteFactoryReset(&preferences);// this function is blocking, either ends up in reset or continue
+
             encoder_1_switch_debounce_timer = millis();
             encoder_2_switch_debounce_timer = encoder_1_switch_debounce_timer;
             state = STATE_MAIN;
@@ -1174,10 +1192,14 @@ void loop()
     if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE_MAIN)
     {
         mainScreenTimer = millis();
-        updateLocalTime(&timeInfo);
-        updateWifiSignal();
+
+        if(!waitingForValidDateTime)
+        {
+            getLocalTime(&timeInfo);
+        }
         
-        updateMainScreen(validWifiConnection, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal); 
+        updateWifiSignal();
+        updateMainScreen(validWifiConnection, true, true, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal); 
     }
 
     // update weather
@@ -1187,7 +1209,7 @@ void loop()
         updateWeatherTelemetry();
     }
 
-    // switch to offline mode
+    // switch to offline mode, only restart will again enable soft AP for configuration
     // TODO: completely different screen displayed in offline mode
     if(!offlineMode && millis() - softApTimeout > SOFT_AP_TIMEOUT_MS)
     {
@@ -1203,17 +1225,30 @@ void loop()
         handleServerClients();
     }
 
-    // sync device local time with timeserver
-    if(readyToTimeSync && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && validWifiConnection)
+    if(waitingForValidDateTime && validWifiConnection && state == STATE_MAIN)
     {
-        readyToTimeSync = false;
-        dayOfTimeSync = timeInfo.tm_mday;
-        syncDateTime();
+        if(millis() - failedToSyncDateTimeTimer > FAILED_TO_SYNC_DATE_TIME_TIMEOUT_MS)
+        {
+            failedToSyncDateTime = true;
+            waitingForValidDateTime = false; 
+        }
+        else
+        {
+            // setting ms to 10 will make the function to check only once
+            if(getLocalTime(&timeInfo, 10))
+            {
+                setTimezone();
+                waitingForValidDateTime = false; 
+            } 
+        }
     }
 
-    // tracks change of day
-    if(dayOfTimeSync != timeInfo.tm_mday)
+    // sync device local time with timeserver
+    if(dayOfTimeSync != timeInfo.tm_mday && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && validWifiConnection && state == STATE_MAIN)
     {
-        readyToTimeSync = true;    
+        dayOfTimeSync = timeInfo.tm_mday;
+        syncDateTime(false);
+        waitingForValidDateTime = true;
+        failedToSyncDateTimeTimer = millis();
     }
 }

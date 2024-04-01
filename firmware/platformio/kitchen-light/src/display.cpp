@@ -757,7 +757,7 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
     ESP.restart();
 }
 
-void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WEATHER weather, WIFI_SIGNAL wifiSignal)
+void updateMainScreen(bool validWifiConnection, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WEATHER weather, WIFI_SIGNAL wifiSignal)
 {
     static bool doubledotVisible = false;
     
@@ -771,6 +771,8 @@ void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uin
     static float prevWindSpeed = -1.0;
     static WIFI_SIGNAL prevWifiSignal = WIFI_SIGNAL_NONE;
     static bool previousValidWifiConnection = !validWifiConnection;
+    static bool previousValiWeather = !validWeather;
+    static bool previousValidDateTime = !validDateTime;
     static WEATHER prevWeather = WEATHER_NONE;
 
     CONSOLE_CRLF("DISPLAY: MAIN UPDATED")
@@ -785,37 +787,6 @@ void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uin
         drawSetupText();
     }
 
-    if((hour != prevHour || forceAll) && validWifiConnection)
-    {
-        updateHour(hour);
-        prevHour = hour;
-        CONSOLE_CRLF("  |-- HOUR UPDATED")
-    } 
-    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
-    {
-        updateHour(hour, true); 
-        CONSOLE_CRLF("  |-- HOUR UPDATED (INVALID)")      
-    }
-
-    if(validWifiConnection)
-    {
-        updateDoubledot(!doubledotVisible);  
-        doubledotVisible = !doubledotVisible;
-        CONSOLE_CRLF("  |-- DOUBLEDOT UPDATED")
-    }
-    
-    if((minute != prevMinute || forceAll) && validWifiConnection)
-    {
-        updateMinute(minute);
-        prevMinute = minute;
-        CONSOLE_CRLF("  |-- MINUTE UPDATED")
-    } 
-    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
-    {
-        updateMinute(minute, true); 
-        CONSOLE_CRLF("  |-- MINUTE UPDATED (INVALID)")      
-    }
-
     if(wifiSignal != prevWifiSignal || forceAll)
     {
         updateWifiSignal(wifiSignal);
@@ -823,6 +794,35 @@ void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uin
         CONSOLE_CRLF("  |-- WIFI SIGNAL UPDATED")
     } 
 
+    updateDoubledot(!doubledotVisible);  
+    doubledotVisible = !doubledotVisible;
+    CONSOLE_CRLF("  |-- DOUBLEDOT UPDATED")
+
+    if((hour != prevHour || forceAll) && validDateTime)
+    {
+        updateHour(hour);
+        prevHour = hour;
+        CONSOLE_CRLF("  |-- HOUR UPDATED")
+    } 
+    else if((previousValidDateTime || forceAll) && !validDateTime)
+    {
+        updateHour(hour, true); 
+        CONSOLE_CRLF("  |-- HOUR UPDATED (INVALID)")      
+    }
+    
+    if((minute != prevMinute || forceAll) && validDateTime)
+    {
+        updateMinute(minute);
+        prevMinute = minute;
+        CONSOLE_CRLF("  |-- MINUTE UPDATED")
+    } 
+    else if((previousValidDateTime || forceAll) && !validDateTime)
+    {
+        updateMinute(minute, true); 
+        CONSOLE_CRLF("  |-- MINUTE UPDATED (INVALID)")      
+    }
+
+    // TODO continue
     if((temperature != prevTemperature || forceAll) && validWifiConnection)
     {
         updateTemperature(temperature);
@@ -889,6 +889,16 @@ void updateMainScreen(bool validWifiConnection, bool forceAll, uint8_t hour, uin
     if(previousValidWifiConnection != validWifiConnection)
     {
         previousValidWifiConnection = validWifiConnection;  
+    }
+
+    if(previousValidDateTime != validDateTime)
+    {
+        previousValidDateTime = validDateTime;
+    }
+
+    if(previousValiWeather != validWeather)
+    {
+        previousValiWeather = validWeather;
     }
 }
 
