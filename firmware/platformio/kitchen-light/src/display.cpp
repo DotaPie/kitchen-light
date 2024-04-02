@@ -27,7 +27,7 @@ void setupDisplay()
     display.setTextColor(ST77XX_WHITE);
     display.setTextSize(2);
     display.setTextWrap(true);
-    display.print("Booting ...");
+    display.print("Please wait ...");
 
     CONSOLE_CRLF("OK") 
 }
@@ -757,10 +757,9 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
     ESP.restart();
 }
 
-void updateMainScreen(bool validWifiConnection, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WEATHER weather, WIFI_SIGNAL wifiSignal)
+void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WEATHER weather, WIFI_SIGNAL wifiSignal)
 {
-    static bool doubledotVisible = false;
-    
+    // track previous values
     static uint8_t prevHour = 255; 
     static uint8_t prevMinute = 255;
     static uint8_t prevDay = 255;
@@ -770,11 +769,14 @@ void updateMainScreen(bool validWifiConnection, bool validWeather, bool validDat
     static uint8_t prevHumidity = 255;
     static float prevWindSpeed = -1.0;
     static WIFI_SIGNAL prevWifiSignal = WIFI_SIGNAL_NONE;
-    static bool previousValidWifiConnection = !validWifiConnection;
-    static bool previousValiWeather = !validWeather;
-    static bool previousValidDateTime = !validDateTime;
     static WEATHER prevWeather = WEATHER_NONE;
 
+    static bool doubledotVisible = false;
+
+    static bool previousValidWifiConnection = !validWifiConnection;
+    static bool previousValidWeather = !validWeather;
+    static bool previousValidDateTime = !validDateTime;
+    
     CONSOLE_CRLF("DISPLAY: MAIN UPDATED")
 
     if(forceAll)
@@ -787,17 +789,22 @@ void updateMainScreen(bool validWifiConnection, bool validWeather, bool validDat
         drawSetupText();
     }
 
+    // update on each updateMainScreen() which happens once a second
+    if(validWifiConnection && validDateTime)
+    {
+        updateDoubledot(!doubledotVisible);  
+        doubledotVisible = !doubledotVisible;
+        CONSOLE_CRLF("  |-- DOUBLEDOT UPDATED")
+    }
+    
     if(wifiSignal != prevWifiSignal || forceAll)
     {
         updateWifiSignal(wifiSignal);
         prevWifiSignal = wifiSignal;
         CONSOLE_CRLF("  |-- WIFI SIGNAL UPDATED")
     } 
-
-    updateDoubledot(!doubledotVisible);  
-    doubledotVisible = !doubledotVisible;
-    CONSOLE_CRLF("  |-- DOUBLEDOT UPDATED")
-
+    
+    // TODO add valid wifi connection as well for all
     if((hour != prevHour || forceAll) && validDateTime)
     {
         updateHour(hour);
@@ -822,57 +829,56 @@ void updateMainScreen(bool validWifiConnection, bool validWeather, bool validDat
         CONSOLE_CRLF("  |-- MINUTE UPDATED (INVALID)")      
     }
 
-    // TODO continue
-    if((temperature != prevTemperature || forceAll) && validWifiConnection)
+    if((temperature != prevTemperature || forceAll) && validWeather)
     {
         updateTemperature(temperature);
         prevTemperature = temperature;
         CONSOLE_CRLF("  |-- TEMPERATURE UPDATED")
     }
-    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    else if((previousValidWeather || forceAll) && !validWeather)
     {
         updateTemperature(temperature, true); 
         CONSOLE_CRLF("  |-- TEMPERATURE UPDATED (INVALID)")      
     }
 
-    if((humidity != prevHumidity || forceAll) && validWifiConnection)
+    if((humidity != prevHumidity || forceAll) && validWeather)
     {
         updateHumidity(humidity);
         prevHumidity = humidity;
         CONSOLE_CRLF("  |-- HUMIDITY UPDATED")
     }
-    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    else if((previousValidWeather || forceAll) && !validWeather)
     {
         updateHumidity(humidity, true); 
         CONSOLE_CRLF("  |-- HUMIDITY UPDATED (INVALID)")      
     }
 
-    if((windSpeed != prevWindSpeed || forceAll) && validWifiConnection)
+    if((windSpeed != prevWindSpeed || forceAll) && validWeather)
     {
         updateWindSpeed(windSpeed);
         prevWindSpeed = windSpeed;
         CONSOLE_CRLF("  |-- WIND SPEED UPDATED")
     }
-    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    else if((previousValidWeather || forceAll) && !validWeather)
     {
         updateWindSpeed(windSpeed, true); 
         CONSOLE_CRLF("  |-- WIND SPEED UPDATED (INVALID)")      
     }
 
-    if((weather != prevWeather || forceAll) && validWifiConnection)
+    if((weather != prevWeather || forceAll) && validWeather)
     {
         updateWeather(weather);
         prevWeather = weather;
         CONSOLE_CRLF("  |-- WEATHER UPDATED")
 
     }
-    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    else if((previousValidWeather || forceAll) && !validWeather)
     {
         updateWindSpeed(windSpeed, true); 
         CONSOLE_CRLF("  |-- WIND SPEED UPDATED (INVALID)")      
     }
 
-    if((day != prevDay || month != prevMonth || year != prevYear || forceAll) && validWifiConnection)
+    if((day != prevDay || month != prevMonth || year != prevYear || forceAll) && validDateTime)
     {
         updateDate(day, month, year);
         prevDay = day;
@@ -880,7 +886,7 @@ void updateMainScreen(bool validWifiConnection, bool validWeather, bool validDat
         prevYear = year;
         CONSOLE_CRLF("  |-- DATE UPDATED")
     }
-    else if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    else if((previousValidDateTime || forceAll) && !validDateTime)
     {
         updateDate(day, month, year, true); 
         CONSOLE_CRLF("  |-- DATE UPDATED (INVALID)")      
@@ -896,9 +902,9 @@ void updateMainScreen(bool validWifiConnection, bool validWeather, bool validDat
         previousValidDateTime = validDateTime;
     }
 
-    if(previousValiWeather != validWeather)
+    if(previousValidWeather != validWeather)
     {
-        previousValiWeather = validWeather;
+        previousValidWeather = validWeather;
     }
 }
 

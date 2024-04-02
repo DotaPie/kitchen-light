@@ -55,6 +55,12 @@ uint8_t humidity = 255;
 float windSpeed = -1.0;
 WIFI_SIGNAL wifiSignal = WIFI_SIGNAL_DISCONNECTED;
 WEATHER weather = WEATHER_NONE;
+bool validWeather = false;
+
+// time sync globals
+bool validDateTime = false;
+struct tm timeInfo;
+bool timezoneSet = false;
 
 // other globals
 WiFiServer server(WIFI_SERVER_PORT); 
@@ -521,6 +527,14 @@ bool setupWifi()
     int8_t rssi;
     uint32_t timeout = millis();
 
+    if(strcmp(wifi_ssid, "****") == 0 && strcmp(wifi_pwd, "****") == 0)
+    {
+        CONSOLE("Wi-Fi status: ")
+        CONSOLE_CRLF("CREDENTIALS NOT SET")
+
+        return false;    
+    }
+
     WiFi.begin(wifi_ssid, wifi_pwd);
 
     while(WiFi.status() != WL_CONNECTED)
@@ -557,23 +571,25 @@ bool setupWifi()
     return true;
 }
 
-// TODO: verify AP disconnection, weather response not comming, etc...
-void syncDateTime(bool waitForSync)
+bool syncDateTime(bool waitForSync, uint32_t syncTimeoutMs)
 {
+    bool success;
+
     CONSOLE("SYNCING LOCAL TIME: ")
 
-    configTime(0, 0, NTP_server_domain); // sync datetime
+    configTime(0, 0, NTP_server_domain); // sync datetime, not setting gmt or daylight saving offset here
+    timezoneSet = false;
 
     if(!waitForSync)
     {
-        return;
+        CONSOLE_CRLF("SKIPPED WAIT FOR SYNC")
+        return false;
     }
 
-    struct tm timeInfo;
-    while(!getLocalTime(&timeInfo))
-    {
-        delay(10); 
-    }
+    success = getLocalTime(&timeInfo, syncTimeoutMs);
+    CONSOLE_CRLF(success ? "OK" : "ERROR")
+
+    return success;
 }
 
 void setTimezone()
@@ -586,19 +602,8 @@ void setTimezone()
     CONSOLE_CRLF("OK")
     CONSOLE("  |-- timezone: ")
     CONSOLE_CRLF(timeZone)
-}
 
-void updateLocalTime(tm *timeInfo)
-{
-    CONSOLE("UPDATING LOCAL TIME: ")
-
-    if(!getLocalTime(timeInfo))
-    {
-        CONSOLE_CRLF("ERROR")
-        return;
-    }
-
-    CONSOLE_CRLF("OK")
+    timezoneSet = true;
 }
 
 void httpGETRequest(char* serverName, char *payload) {
@@ -703,7 +708,7 @@ void updateWeather(const char* openweatherIconString)
     }
 }
 
-void updateWeatherTelemetry()
+bool updateWeatherTelemetry()
 {
     char payloadJSON[MAX_HTTP_PAYLOAD_SIZE + 1] = "";
     char serverURL[MAX_SERVER_URL_SIZE + 1] = "";  
@@ -711,34 +716,28 @@ void updateWeatherTelemetry()
 
     sprintf(serverURL, openWeatherServerURL_formatable, city, countryCode, openWeatherAPI_key);
 
-    for(uint8_t i = 1; i <= NUMBER_OF_RETRIES_FOR_WEATHER; i++)
+    uint32_t x = millis();
+
+    httpGETRequest(serverURL, payloadJSON);
+
+    uint32_t y = millis();
+
+    CONSOLE("JSON RESPONSE: ");
+    CONSOLE_CRLF(payloadJSON)
+
+    CONSOLE("JSON DERESIALIZATON: ")
+    DeserializationError error = deserializeJson(doc, payloadJSON);
+
+    uint32_t z = millis();
+
+    CONSOLE_CRLF()
+    CONSOLE_CRLF(z - x)
+    CONSOLE_CRLF(z - y)
+
+    if(error)
     {
-        httpGETRequest(serverURL, payloadJSON);
-
-        CONSOLE("JSON RESPONSE: ");
-        CONSOLE_CRLF(payloadJSON)
-
-        CONSOLE("JSON DERESIALIZATON: ")
-        DeserializationError error = deserializeJson(doc, payloadJSON);
-
-        if(error)
-        {
-            CONSOLE("ERROR");
-
-            if(i == NUMBER_OF_RETRIES_FOR_WEATHER)
-            {
-                CONSOLE_CRLF();
-                return;
-            }
-            else
-            {
-                CONSOLE_CRLF(" (retrying)");
-            }
-        }
-        else
-        {
-            break;
-        }
+        CONSOLE_CRLF("ERROR");
+        return false;
     }
     
     CONSOLE_CRLF("OK");
@@ -761,6 +760,8 @@ void updateWeatherTelemetry()
     CONSOLE_CRLF(openweatherIconString);
     CONSOLE("  |-- weather string: ");
     CONSOLE_CRLF(weatherString[(uint8_t)weather]);
+
+    return true;
 }
 
 void enableAP()
@@ -993,7 +994,7 @@ void handleServerClients()
 
             if(client.available() > 0)
             {
-                char c =  client.read();
+                char c = client.read();
                 CONSOLE(c)   
                 buff[index++] = c; 
             }
@@ -1065,23 +1066,23 @@ void setup()
     loadPreferences();
     setupDisplay();
     setupRotaryEncoders();
-    setup_LED_strip();
+    setup_LED_strip(); // TODO: add feature -> user can choose amount of LEDs to control
     CONSOLE_CRLF()
 
     // we could do this before loading animation of LED strip, but on single core CPUs this could cause issues
     if(setupWifi())
     {
-        syncDateTime(true);
+        validDateTime = syncDateTime(true, SETUP_SYNC_DATE_TIME_TIMEOUT_MS);
         setTimezone();
-        updateWeatherTelemetry();
+        validWeather = updateWeatherTelemetry();
     }
     else
     {
         enableAP();
     }
-    
-    state = STATE_MAIN;
 
+    state = STATE_MAIN;
+    
     CONSOLE_CRLF("~~~ LOOP ~~~")
 }
 
@@ -1090,26 +1091,20 @@ void loop()
     static uint32_t mainScreenTimer = 0;
     static uint32_t weatherTimer = millis();
     static uint32_t rotary_encoder_timer = 0;
-    struct tm timeInfo;
-    static uint16_t dayOfTimeSync = 0;
-    static uint32_t noInternetTimeout = millis();
+    static uint16_t dayOfTimeSync = timeInfo.tm_mday;
     static uint32_t softApTimeout = millis();
     static uint32_t offlineMode = false;
-    static bool waitingForValidDateTime = false;
-
-    static bool failedToSyncDateTime = false;
-    static uint32_t failedToSyncDateTimeTimer = 0;
 
     // handle inputs
     checkRotaryEncoders(&rotary_encoder_timer);
 
-    // auto state change to main
+    // auto state change to main after period of time
     if((state == STATE_BRIGHTNESS || state == STATE_COLOR) && millis() - rotary_encoder_timer > ANY_SETTING_SCREEN_TIMER_MS)
     {
         state = STATE_MAIN;
     }
 
-    // display state change
+    // handle state change
     if(state != previousState)
     {
         previousState = state;
@@ -1117,27 +1112,23 @@ void loop()
         CONSOLE("STATE CHANGE: ");
         CONSOLE_CRLF(stateString[(uint8_t)state])
 
-        if(state == STATE_COLOR)
-        {
-            CONSOLE("  |-- color picker type: ")
-            CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT]);
-        }
-
         if(state == STATE_MAIN)
         {
             // in case there has been any changes to preferences
             updatePreferences();
 
-            if(!waitingForValidDateTime)
+            mainScreenTimer = millis();
+
+            validDateTime = getLocalTime(&timeInfo, LOOP_SYNC_DATE_TIME_TIMEOUT_MS);
+
+            if(validDateTime && !timezoneSet)
             {
-                getLocalTime(&timeInfo);
+                setTimezone();
             }
 
             updateWifiSignal();
             clearDisplay();
-            
-            mainScreenTimer = millis();
-            updateMainScreen(validWifiConnection, true, true, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
+            updateMainScreen(offlineMode, validWifiConnection, validWeather, validDateTime, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
         }
         else if(state == STATE_BRIGHTNESS)
         {
@@ -1146,6 +1137,9 @@ void loop()
         }
         else if(state == STATE_COLOR) // handle transition from "state = STATE_MAIN" to "state == STATE_COLOR" 
         {
+            CONSOLE("  |-- color picker type: ")
+            CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT]);
+
             clearDisplay();
 
             if(current_CPT == CPT_COLOR_TEMPERATURE)
@@ -1160,14 +1154,16 @@ void loop()
         else if(state == STATE_FACTORY_RESET)
         {
             clearDisplay();
-            loadAndExecuteFactoryReset(&preferences);// this function is blocking, either ends up in reset or continue
+            loadAndExecuteFactoryReset(&preferences); // this function is blocking loop, either ends up in reset or continue
 
             encoder_1_switch_debounce_timer = millis();
-            encoder_2_switch_debounce_timer = encoder_1_switch_debounce_timer;
+            encoder_2_switch_debounce_timer = millis();
             state = STATE_MAIN;
         }
     }
-    else if(current_CPT != previous_CPT && state == STATE_COLOR) // handle CPT change during state == STATE_COLOR
+
+    // handle CPT change (state remains STATE_COLOR)
+    if(current_CPT != previous_CPT && state == STATE_COLOR) 
     {
         previous_CPT = current_CPT;
 
@@ -1188,67 +1184,48 @@ void loop()
         }                
     }
 
-    // update time, wifi signal and main screen (to change double dot visibility) once a second
+    // once a second update local datetime, wifi signal and main screen (if anything needs update)
     if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE_MAIN)
     {
         mainScreenTimer = millis();
 
-        if(!waitingForValidDateTime)
+        validDateTime = getLocalTime(&timeInfo, LOOP_SYNC_DATE_TIME_TIMEOUT_MS);
+
+        if(validDateTime && !timezoneSet)
         {
-            getLocalTime(&timeInfo);
+            setTimezone();
         }
-        
+
         updateWifiSignal();
-        updateMainScreen(validWifiConnection, true, true, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal); 
+        updateMainScreen(offlineMode, validWifiConnection, validWeather, validDateTime, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal); 
     }
 
-    // update weather
-    if(millis() - weatherTimer > UPDATE_WEATHER_MS && state == STATE_MAIN && validWifiConnection)
-    {
-        weatherTimer = millis();
-        updateWeatherTelemetry();
-    }
-
-    // switch to offline mode, only restart will again enable soft AP for configuration
-    // TODO: completely different screen displayed in offline mode
-    if(!offlineMode && millis() - softApTimeout > SOFT_AP_TIMEOUT_MS)
-    {
-        offlineMode = true;
-
-        WiFi.disconnect();
-        WiFi.mode(WIFI_OFF);
-    }
-
-    // allow clients to connect to soft AP
+    // allow clients to connect to soft AP and configure device
     if(!validWifiConnection && !offlineMode)
     {
         handleServerClients();
-    }
+ 
+        // TODO: completely different screen displayed in offline mode
+        if(millis() - softApTimeout > SOFT_AP_TIMEOUT_MS)
+        {
+            offlineMode = true;
 
-    if(waitingForValidDateTime && validWifiConnection && state == STATE_MAIN)
-    {
-        if(millis() - failedToSyncDateTimeTimer > FAILED_TO_SYNC_DATE_TIME_TIMEOUT_MS)
-        {
-            failedToSyncDateTime = true;
-            waitingForValidDateTime = false; 
-        }
-        else
-        {
-            // setting ms to 10 will make the function to check only once
-            if(getLocalTime(&timeInfo, 10))
-            {
-                setTimezone();
-                waitingForValidDateTime = false; 
-            } 
+            WiFi.disconnect();
+            WiFi.mode(WIFI_OFF);
         }
     }
 
-    // sync device local time with timeserver
-    if(dayOfTimeSync != timeInfo.tm_mday && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && validWifiConnection && state == STATE_MAIN)
+    // sync datetime
+    if(validWifiConnection && !offlineMode && dayOfTimeSync != timeInfo.tm_mday && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && state == STATE_MAIN)
     {
         dayOfTimeSync = timeInfo.tm_mday;
-        syncDateTime(false);
-        waitingForValidDateTime = true;
-        failedToSyncDateTimeTimer = millis();
+        syncDateTime(false, LOOP_SYNC_DATE_TIME_TIMEOUT_MS);
+    }
+
+    // update weather
+    if(validWifiConnection && !offlineMode && millis() - weatherTimer > UPDATE_WEATHER_MS && state == STATE_MAIN)
+    {
+        weatherTimer = millis();
+        updateWeatherTelemetry();
     }
 }

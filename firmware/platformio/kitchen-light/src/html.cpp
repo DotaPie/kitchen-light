@@ -25,7 +25,7 @@ const char *htmlWebPageForm = R"======(
 		(example: London, supported cities https://openweathermap.org/storage/app/media/cities_list.xlsx)<br>
 		<input type="text" id="city" name="city"><br><br>
 		
-		<label for="country-code"><b>COUNTRY CODE</b></label><br>
+		<label for="country-code"><b>COUNTRY</b></label><br>
 		<select id="country-code" name="country-code">
 			<option value="AF">Afghanistan</option>
 			<option value="AX">Aland Islands</option>
@@ -766,7 +766,7 @@ const char *htmlWebPageCompleteFormatter = R"======(
 		<b>WIFI PASSWORD:</b> %s<br>
 		<b>CITY:</b> %s<br>
 		<b>COUNTRY CODE:</b> %s<br>
-		<b>TIME ZONE:</b> %s<br>
+		<b>TIME ZONE STRING:</b> %s<br>
 		<b>OPENWEATHER API KEY:</b> %s<br>
 	</p>
 	
