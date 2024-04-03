@@ -211,9 +211,6 @@ void updateNumberOfLeds(long direction, bool valueLocked)
 
 void setup_LED_strip()
 {
-    long previous_encoder_1_position = 0; 
-    long previous_encoder_2_position = 0;
-
     if(numberOfLeds == 0)
     {
         FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, LED_STRIP_MAX_LED_COUNT).setCorrection(TypicalLEDStrip);
@@ -252,7 +249,7 @@ void setup_LED_strip()
 
                 updateNumberOfLeds(encoder_1_direction, false);
 
-                // in case we decrease value, we first need to pass the size numberOfLeds + 1, so we can set last LED from previous numberOfLeds to black
+                // in case we decrease value, we first need to pass the numberOfLeds + 1, so we can set last LED from previous numberOfLeds to black
                 FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, encoder_1_direction == -1 ? numberOfLeds + 1 : numberOfLeds).setCorrection(TypicalLEDStrip);
 
                 for(uint16_t i = 0; i < numberOfLeds; i++)
@@ -268,7 +265,7 @@ void setup_LED_strip()
 
                 FastLED.show();
 
-                // in case we decrease value, make sure we pass the proper size
+                // in case we decrease value, make sure we pass the proper numberOfLeds
                 if(encoder_1_direction == -1)
                 {
                     FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, numberOfLeds).setCorrection(TypicalLEDStrip);
@@ -312,6 +309,7 @@ void setup_LED_strip()
             }   
         }
 
+        clearDisplay();
         updateDisplayNumberOfLeds(numberOfLeds, true);
         delay(2000);
 
@@ -1177,9 +1175,8 @@ void setup()
     resetDatetime();
     setupRotaryEncoders();
     setupDisplay();
-    setup_LED_strip(); // TODO: the knob that was used to set LEDs is triggered even after entering loop
+    setup_LED_strip();
     showPleaseWaitOnDisplay();
-    CONSOLE_CRLF()
 
     // we could do this before loading animation of LED strip, but on single core CPUs this could cause issues
     if(setupWifi())
