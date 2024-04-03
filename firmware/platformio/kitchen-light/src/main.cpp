@@ -1201,7 +1201,6 @@ void loop()
     {
         handleServerClients();
  
-        // TODO: completely different screen displayed in offline mode
         if(millis() - softApTimeout > SOFT_AP_TIMEOUT_MS)
         {
             offlineMode = true;
