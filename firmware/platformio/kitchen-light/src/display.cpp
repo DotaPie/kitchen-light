@@ -23,13 +23,19 @@ void setupDisplay()
     display.setRotation(DISPLAY_ROTATION_DEGREE/90);
     display.invertDisplay(false); 
     display.fillScreen(ST77XX_BLACK);
+    
+    CONSOLE_CRLF("OK") 
+}
+
+void showPleaseWaitOnDisplay()
+{
+    clearDisplay();
+
     display.setCursor(4, 4);
     display.setTextColor(ST77XX_WHITE);
     display.setTextSize(2);
     display.setTextWrap(true);
-    display.print("Please wait ...");
-
-    CONSOLE_CRLF("OK") 
+    display.print("Please wait ...");    
 }
 
 void loadDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t previousColorTemperatureIndex)
@@ -111,6 +117,51 @@ void loadDisplayBrightness(uint8_t brightness)
     CONSOLE_CRLF("DISPLAY: BRIGHTNESS LOADED")
 
     updateDisplayBrightness(brightness);
+}
+
+void loadDisplayNumberOfLeds()
+{
+    clearDisplay();
+
+    display.setCursor(5, 6);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(3, 3);
+    display.setTextWrap(false);
+    display.print("Number of LEDs\r\n");
+
+    display.setCursor(5, display.height() - 40);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 2);
+    display.setTextWrap(false);
+    display.print("Change -> rotate any knob");
+
+    display.setCursor(5, display.height() - 20);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 2);
+    display.setTextWrap(false);
+    display.print("Accept -> push any knob");
+
+    CONSOLE_CRLF("DISPLAY: NUMBER OF LEDS LOADED")
+}
+
+void updateDisplayNumberOfLeds(uint16_t numberOfLeds, bool valueLocked)
+{
+    display.fillRect(0, 60, display.width(), display.height() - (60 + 40), RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(6, 60);
+    
+    if(valueLocked)
+    {
+        display.setTextColor(RGB888_TO_RGB565(0, 255, 0));
+    }
+    else
+    {
+        display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    }
+
+    display.setTextSize(12, 17);
+    display.setTextWrap(false); 
+
+    display.print(numberOfLeds); 
 }
 
 CRGB calculateColorTemperatureFromPickerPosition(uint16_t pickerPosition)

@@ -1,21 +1,17 @@
 #ifndef CONF_H
 #define CONF_H
 
+// dev macros
+#define DEVELOPMENT // LED strip only with 3 LEDs
+
 // general
 #define DELAY_BEFORE_STARTUP_MS 10
 
 // LED strip
-#define DEVELOPMENT // LED strip only with 3 LEDs
-
-#ifdef DEVELOPMENT
-#define LED_STRIP_LED_COUNT 3
-#elif
-#define LED_STRIP_LED_COUNT 213
-#endif
-
+#define LED_STRIP_MAX_LED_COUNT 9999
 #define LED_STRIP_TYPE WS2812B
 #define COLOR_ORDER GRB
-#define DEFAULT_BRIGHTNESS 255
+#define DEFAULT_BRIGHTNESS 16
 #define COLOR_BLENDING LINEARBLEND
 
 

@@ -10,6 +10,10 @@
 enum MOVEMENT_DIRECTION {DIRECTION_LEFT, DIRECTION_RIGHT};
 
 void setupDisplay();
+void showPleaseWaitOnDisplay();
+
+void loadDisplayNumberOfLeds();
+void updateDisplayNumberOfLeds(uint16_t numberOfLeds, bool valueLocked);
 
 CRGB calculateColorTemperatureFromPickerPosition(uint16_t pickerPosition);
 

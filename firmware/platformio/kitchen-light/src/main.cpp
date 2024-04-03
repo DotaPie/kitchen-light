@@ -39,6 +39,8 @@ char timeZone[TIME_ZONE_MAX_LENGTH + 1] = ""; // https://github.com/nayarsystems
 char city[CITY_MAX_LENGTH + 1] = "";
 char countryCode[COUNTRY_CODE_MAX_LENGTH + 1] = "";
 char openWeatherAPI_key[API_KEY_MAX_LENGTH + 1] = "";
+uint16_t numberOfLeds = 0;
+uint16_t previousNumberOfLeds = 0;
 
 // encoder globals
 RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
@@ -63,7 +65,7 @@ bool timezoneSet = false;
 
 // other globals
 WiFiServer server(WIFI_SERVER_PORT); 
-CRGB LED_stripArray[LED_STRIP_LED_COUNT];
+CRGB LED_stripArray[LED_STRIP_MAX_LED_COUNT];
  
 void loadPreferences()
 {
@@ -94,6 +96,7 @@ void loadPreferences()
             preferences.putUInt("rng-id", random(1000, 10000));
             preferences.putUInt("rng-pwd", random(10000000, 100000000));
         #endif
+        preferences.putUInt("n-leds", 0);
     }
 
     current_CPT = (COLOR_PICKER_TYPE)preferences.getUChar("CPT", (uint8_t)CPT_NONE);  
@@ -115,6 +118,8 @@ void loadPreferences()
 
     rng_id = preferences.getUInt("rng-id", 1234);
     rng_pwd = preferences.getUInt("rng-pwd", 12345678);
+
+    numberOfLeds = preferences.getUInt("n-leds", 0);
 
     sprintf(defaultSoftAP_ssid, "Kitchen light #%d", rng_id);
     sprintf(defaultSoftAP_pwd, "%d", rng_pwd);
@@ -162,7 +167,7 @@ void update_LED_strip()
 {
     CRGB color = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);
     
-    for(uint16_t i = 0; i < LED_STRIP_LED_COUNT; i++)
+    for(uint16_t i = 0; i < numberOfLeds; i++)
     {
         LED_stripArray[i] = color;     
     }
@@ -170,35 +175,148 @@ void update_LED_strip()
     FastLED.show();
 }
 
-void LED_strip_load_animation()
+void updateNumberOfLeds(long direction, bool valueLocked)
 {
-    for(uint16_t i = 0; i < LED_STRIP_LED_COUNT; i++)
+    int32_t tempNumberOfLeds = numberOfLeds + (direction);
+
+    if(tempNumberOfLeds < 0)
     {
-        for(uint16_t j = 0; j < i; j++)
-        {
-            LED_stripArray[j] = ColorFromPalette(RainbowColors_p, (uint8_t)(j/2), DEFAULT_BRIGHTNESS, COLOR_BLENDING);   
-        }
-
-        for(uint16_t j = i; j < LED_STRIP_LED_COUNT; j++)
-        {
-            LED_stripArray[j] = CRGB(0, 0, 0);   
-        }  
-
-        FastLED.show();
-        delay(6);
+        currentBrightness = 0;
     }
-}   
+    else if(tempNumberOfLeds > LED_STRIP_MAX_LED_COUNT)
+    {
+        currentBrightness = LED_STRIP_MAX_LED_COUNT;
+    }
+    else 
+    {
+        numberOfLeds = (uint16_t)tempNumberOfLeds;     
+    }
+
+    CONSOLE_CRLF("NUMBER OF LEDS UPDATE")
+    CONSOLE("  |-- previous value: ")
+    CONSOLE_CRLF(previousNumberOfLeds)
+    CONSOLE("  |-- new value: ")
+    CONSOLE_CRLF(numberOfLeds)
+
+    if(previousNumberOfLeds != numberOfLeds)
+    {
+        updateDisplayNumberOfLeds(numberOfLeds, valueLocked);
+    }
+
+    previousNumberOfLeds = numberOfLeds;
+}
 
 void setup_LED_strip()
 {
+    long previous_encoder_1_position = 0; 
+    long previous_encoder_2_position = 0;
+
+    if(numberOfLeds == 0)
+    {
+        FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, LED_STRIP_MAX_LED_COUNT).setCorrection(TypicalLEDStrip);
+
+        for(uint16_t i = 0; i < LED_STRIP_MAX_LED_COUNT; i++)
+        {
+            LED_stripArray[i] = CRGB(0, 0, 0);    
+        }
+
+        FastLED.setBrightness(DEFAULT_BRIGHTNESS);
+        FastLED.show();
+
+        loadDisplayNumberOfLeds();
+        updateDisplayNumberOfLeds(numberOfLeds, false);
+
+        while(digitalRead(RE_1_SW_PIN) == HIGH && digitalRead(RE_2_SW_PIN) == HIGH)
+        {
+            int8_t encoder_1_direction, encoder_2_direction;
+
+            encoder_1.tick();
+            encoder_2.tick();
+
+            long encoder_1_position = encoder_1.getPosition();
+            long encoder_2_position = encoder_2.getPosition();
+
+            if( previous_encoder_1_position != encoder_1_position)
+            {
+                previous_encoder_1_position = encoder_1_position;
+                encoder_1_direction = (int)(encoder_1.getDirection());
+
+                CONSOLE_CRLF("ROTARY ENCODER 1 CHANGE")
+                CONSOLE("  |-- position: ")
+                CONSOLE_CRLF(encoder_1_position)
+                CONSOLE("  |-- direction: ")
+                CONSOLE_CRLF(encoder_1_direction)
+
+                updateNumberOfLeds(encoder_1_direction, false);
+
+                // in case we decrease value, we first need to pass the size numberOfLeds + 1, so we can set last LED from previous numberOfLeds to black
+                FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, encoder_1_direction == -1 ? numberOfLeds + 1 : numberOfLeds).setCorrection(TypicalLEDStrip);
+
+                for(uint16_t i = 0; i < numberOfLeds; i++)
+                {
+                    LED_stripArray[i] = CRGB(0, 255, 0);    
+                }
+
+                // in case we decrease value, make sure we set the last LED from previous numberOfLeds to black
+                if(encoder_1_direction == -1)
+                {
+                    LED_stripArray[numberOfLeds] = CRGB(0, 0, 0);    
+                }
+
+                FastLED.show();
+
+                // in case we decrease value, make sure we pass the proper size
+                if(encoder_1_direction == -1)
+                {
+                    FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, numberOfLeds).setCorrection(TypicalLEDStrip);
+                }
+            }
+        
+            if(previous_encoder_2_position != encoder_2_position)
+            {
+                previous_encoder_2_position = encoder_2_position;
+                encoder_2_direction = (int)(encoder_2.getDirection());
+
+                CONSOLE_CRLF("ROTARY ENCODER 2 CHANGE")
+                CONSOLE("  |-- position: ")
+                CONSOLE_CRLF(encoder_2_position)
+                CONSOLE("  |-- direction: ")
+                CONSOLE_CRLF(encoder_2_direction)
+
+                updateNumberOfLeds(encoder_2_direction, false);
+
+                // in case we decrease value, we first need to pass the size numberOfLeds + 1, so we can set last LED from previous numberOfLeds to black
+                FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, encoder_2_direction == -1 ? numberOfLeds + 1 : numberOfLeds).setCorrection(TypicalLEDStrip);
+
+                for(uint16_t i = 0; i < numberOfLeds; i++)
+                {
+                    LED_stripArray[i] = CRGB(0, 255, 0);    
+                }
+
+                // in case we decrease value, make sure we set the last LED from previous numberOfLeds to black
+                if(encoder_2_direction == -1)
+                {
+                    LED_stripArray[numberOfLeds] = CRGB(0, 0, 0);    
+                }
+
+                FastLED.show();
+
+                // in case we decrease value, make sure we pass the proper size
+                if(encoder_2_direction == -1)
+                {
+                    FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, numberOfLeds).setCorrection(TypicalLEDStrip);
+                }
+            }   
+        }
+
+        updateDisplayNumberOfLeds(numberOfLeds, true);
+        delay(2000);
+
+        preferences.putUInt("n-leds", numberOfLeds); // make change persistent
+    }
+
     CONSOLE("LED strip: ")
-    FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, LED_STRIP_LED_COUNT).setCorrection(TypicalLEDStrip);
-
-    #ifndef DEVELOPMENT   
-    FastLED.setBrightness(DEFAULT_BRIGHTNESS);
-    LED_strip_load_animation();
-    #endif
-
+    FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, numberOfLeds).setCorrection(TypicalLEDStrip);
     FastLED.setBrightness(currentBrightness);
     update_LED_strip();
 
@@ -473,7 +591,7 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
     }
 }
 
-void updatePreferences()
+void updateColorAndBrightnessPreferences()
 {
     if(current_CPT != (COLOR_PICKER_TYPE)preferences.getUChar("CPT"))
     {
@@ -1054,9 +1172,10 @@ void setup()
 
     loadPreferences();
     resetDatetime();
-    setupDisplay();
     setupRotaryEncoders();
-    setup_LED_strip(); // TODO: add feature -> user can choose amount of LEDs to control
+    setupDisplay();
+    setup_LED_strip(); // TODO: the knob that was used to set LEDs is triggered even after entering loop
+    showPleaseWaitOnDisplay();
     CONSOLE_CRLF()
 
     // we could do this before loading animation of LED strip, but on single core CPUs this could cause issues
@@ -1111,7 +1230,7 @@ void loop()
         if(state == STATE_MAIN)
         {
             // in case there has been any changes to preferences
-            updatePreferences();
+            updateColorAndBrightnessPreferences();
 
             mainScreenTimer = millis();
 
