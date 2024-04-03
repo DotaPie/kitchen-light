@@ -22,7 +22,6 @@
 STATE state = STATE_MAIN; 
 STATE previousState = STATE_NONE;
 bool validWifiConnection = false; // true if connected to wi-fi, internet connection does not matter here
-bool validInternetConnection = false; // true if connected to wi-fi and to internet
 Preferences preferences;
 
 // preferences globals: will be loaded in setup -> loadPreferences();
@@ -82,14 +81,19 @@ void loadPreferences()
         preferences.putUInt("color-hue", 0);
         preferences.putUInt("color-t", 0);
         preferences.putUChar("brightness", DEFAULT_BRIGHTNESS);
-        preferences.putBytes("wifi_ssid", "****", WIFI_SSID_MAX_LENGTH + 1);
-        preferences.putBytes("wifi_pwd", "****", WIFI_PWD_MAX_LENGTH + 1);
-        preferences.putBytes("time-zone", "GMT0", TIME_ZONE_MAX_LENGTH + 1);
-        preferences.putBytes("city", "****", CITY_MAX_LENGTH + 1);
-        preferences.putBytes("country-c", "**", COUNTRY_CODE_MAX_LENGTH + 1);
-        preferences.putBytes("api-key", "****", API_KEY_MAX_LENGTH + 1);
-        preferences.putUInt("rng-id", random(1000, 10000));
-        preferences.putUInt("rng-pwd", random(10000000, 100000000));
+        preferences.putBytes("wifi_ssid", INVALID_WIFI_SSID, WIFI_SSID_MAX_LENGTH + 1);
+        preferences.putBytes("wifi_pwd", INVALID_WIFI_PWD, WIFI_PWD_MAX_LENGTH + 1);
+        preferences.putBytes("time-zone", INVALID_TIMEZONE, TIME_ZONE_MAX_LENGTH + 1);
+        preferences.putBytes("city", INVALID_CITY, CITY_MAX_LENGTH + 1);
+        preferences.putBytes("country-c", INVALID_COUNTRY_CODE, COUNTRY_CODE_MAX_LENGTH + 1);
+        preferences.putBytes("api-key", INVALID_API_KEY, API_KEY_MAX_LENGTH + 1);
+        #ifdef DEVELOPMENT
+            preferences.putUInt("rng-id", 1234);
+            preferences.putUInt("rng-pwd", 12345678);    
+        #elif
+            preferences.putUInt("rng-id", random(1000, 10000));
+            preferences.putUInt("rng-pwd", random(10000000, 100000000));
+        #endif
     }
 
     current_CPT = (COLOR_PICKER_TYPE)preferences.getUChar("CPT", (uint8_t)CPT_NONE);  
@@ -110,7 +114,7 @@ void loadPreferences()
     preferences.getBytes("api-key", openWeatherAPI_key, API_KEY_MAX_LENGTH + 1);
 
     rng_id = preferences.getUInt("rng-id", 1234);
-    rng_pwd = preferences.getUInt("rng-pwd", 123456);
+    rng_pwd = preferences.getUInt("rng-pwd", 12345678);
 
     sprintf(defaultSoftAP_ssid, "Kitchen light #%d", rng_id);
     sprintf(defaultSoftAP_pwd, "%d", rng_pwd);
@@ -527,7 +531,7 @@ bool setupWifi()
     int8_t rssi;
     uint32_t timeout = millis();
 
-    if(strcmp(wifi_ssid, "****") == 0 && strcmp(wifi_pwd, "****") == 0)
+    if(strcmp(wifi_ssid, INVALID_WIFI_SSID) == 0 && strcmp(wifi_pwd, INVALID_WIFI_PWD) == 0)
     {
         CONSOLE("Wi-Fi status: ")
         CONSOLE_CRLF("CREDENTIALS NOT SET")
@@ -612,6 +616,7 @@ void httpGETRequest(char* serverName, char *payload) {
 
     // Your Domain name with URL path or IP address with path
     http.begin(client, serverName);
+    http.setTimeout(1000);
 
     // Send HTTP POST request
     int httpResponseCode = http.GET();
@@ -713,26 +718,16 @@ bool updateWeatherTelemetry()
     char payloadJSON[MAX_HTTP_PAYLOAD_SIZE + 1] = "";
     char serverURL[MAX_SERVER_URL_SIZE + 1] = "";  
     JsonDocument doc;
-
+    
     sprintf(serverURL, openWeatherServerURL_formatable, city, countryCode, openWeatherAPI_key);
 
-    uint32_t x = millis();
-
     httpGETRequest(serverURL, payloadJSON);
-
-    uint32_t y = millis();
 
     CONSOLE("JSON RESPONSE: ");
     CONSOLE_CRLF(payloadJSON)
 
-    CONSOLE("JSON DERESIALIZATON: ")
+    CONSOLE("JSON DESERIALIZATON: ")
     DeserializationError error = deserializeJson(doc, payloadJSON);
-
-    uint32_t z = millis();
-
-    CONSOLE_CRLF()
-    CONSOLE_CRLF(z - x)
-    CONSOLE_CRLF(z - y)
 
     if(error)
     {
@@ -972,9 +967,7 @@ void handleServerClients()
     char buff[MAX_HTTP_PAYLOAD_SIZE] = "";
     uint16_t index = 0;
     uint32_t timeout = 0;
-    static bool formPacketComplete = false;
-    static bool setupPacketComplete = false;
-
+    
     if(client)
     {
         CONSOLE_CRLF("SERVER: NEW CLIENT") 
@@ -992,7 +985,7 @@ void handleServerClients()
                 break;
             }
 
-            if(client.available() > 0)
+            while(client.available() > 0)
             {
                 char c = client.read();
                 CONSOLE(c)   
@@ -1000,61 +993,57 @@ void handleServerClients()
             }
 
             // look for end of header of any request
-            if(strstr(buff, "\r\n\r\n") != NULL && !formPacketComplete)
+            if(strstr(buff, "\r\n\r\n") != NULL)
             {
                 CONSOLE_CRLF("- - - - - - - - -")
-                CONSOLE_CRLF("SERVER: FORM PACKET RECEIVED")
-                formPacketComplete = true;
-                break;
-            }
+                CONSOLE_CRLF("SERVER: HTTP REQUEST RECEIVED")
 
-            if( 
-                strstr(buff, "\r\n\r\n") != NULL && 
-                formPacketComplete &&
-                !setupPacketComplete &&
-                strstr(buff, "ssid") != NULL &&
-                strstr(buff, "pwd") != NULL &&
-                strstr(buff, "city") != NULL &&
-                strstr(buff, "country-code") != NULL &&
-                strstr(buff, "timezones") != NULL &&
-                strstr(buff, "api-key") != NULL
-            )
-            {
-                CONSOLE_CRLF("- - - - - - - - -")
-                CONSOLE_CRLF("SERVER: SETUP PACKET RECEIVED")
-                CONSOLE_CRLF("  |-- received all required parameters")
+                // if request contains form data in URL, parse it, save it, send back ack html page and reboot
+                if(  
+                    strstr(buff, "ssid") != NULL &&
+                    strstr(buff, "pwd") != NULL &&
+                    strstr(buff, "city") != NULL &&
+                    strstr(buff, "country-code") != NULL &&
+                    strstr(buff, "timezones") != NULL &&
+                    strstr(buff, "api-key") != NULL
+                )
+                {
+                    CONSOLE_CRLF("SERVER: SETUP PACKET RECEIVED")
+                    CONSOLE_CRLF("  |-- received all required parameters")
 
-                CONSOLE_CRLF("SERVER: SAVING NEW PARAMETERS TO PREFERENCES")
-                saveNewParamsToPreferences(buff);   
+                    CONSOLE_CRLF("SERVER: SAVING NEW PARAMETERS TO PREFERENCES")
+                    saveNewParamsToPreferences(buff);   
 
-                setupPacketComplete = true;
+                    sprintf(buff, htmlWebPageCompleteFormatter, wifi_ssid, wifi_pwd, city, countryCode, timeZone, openWeatherAPI_key);
+                    client.print(buff);  
+                    client.flush();
+                    delay(1000); // sometimes flush was not enaugh
+                    client.stop();
+                    CONSOLE_CRLF("SERVER: CLIENT DISCONNECTED")   
+
+                    CONSOLE_CRLF("ESP32: RESTART")  
+                    ESP.restart();   
+                }
+                // for any request print main page (basically index.html)
+                else
+                {
+                    client.print(htmlWebPageForm); 
+                }
+
                 break;
             }
         }  
-
-        if(formPacketComplete && !setupPacketComplete)
-        {
-            client.print(htmlWebPageForm);    
-        }
-        else if(formPacketComplete && setupPacketComplete)
-        {
-            sprintf(buff, htmlWebPageCompleteFormatter, wifi_ssid, wifi_pwd, city, countryCode, timeZone, openWeatherAPI_key);
-            client.print(buff);  
-            client.flush();
-            delay(1000);
-            client.stop();
-            CONSOLE_CRLF("SERVER: CLIENT DISCONNECTED")   
-
-            CONSOLE_CRLF("ESP32: RESTART")  
-            ESP.restart();       
-        }
-        else
-        {
-            delay(1000);
-            client.stop();
-            CONSOLE_CRLF("SERVER: CLIENT DISCONNECTED")
-        }
     }
+}
+/* To make sure date and time is always synced, reset it to some invalid value (basically any year <2015).
+ * Alternatively we could enable user to use datetime even in offline mode, but to set it manually with knobs.
+ * However for now I have decided to make datetime work only in online mode.
+ */
+void resetDatetime()
+{
+    struct timeval tv;
+    tv.tv_sec = 0;
+    settimeofday(&tv, NULL);
 }
 
 void setup()
@@ -1064,6 +1053,7 @@ void setup()
     CONSOLE_CRLF("~~~ SETUP ~~~")
 
     loadPreferences();
+    resetDatetime();
     setupDisplay();
     setupRotaryEncoders();
     setup_LED_strip(); // TODO: add feature -> user can choose amount of LEDs to control
@@ -1075,6 +1065,12 @@ void setup()
         validDateTime = syncDateTime(true, SETUP_SYNC_DATE_TIME_TIMEOUT_MS);
         setTimezone();
         validWeather = updateWeatherTelemetry();
+
+        // in setup we can retry telemetry request
+        if(!validWeather)
+        {
+            validWeather = updateWeatherTelemetry();   
+        }
     }
     else
     {
@@ -1219,13 +1215,13 @@ void loop()
     if(validWifiConnection && !offlineMode && dayOfTimeSync != timeInfo.tm_mday && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && state == STATE_MAIN)
     {
         dayOfTimeSync = timeInfo.tm_mday;
-        syncDateTime(false, LOOP_SYNC_DATE_TIME_TIMEOUT_MS);
+        syncDateTime(false, LOOP_SYNC_DATE_TIME_TIMEOUT_MS); // verification of datetime sync will be chcecked each second, we ignore return here
     }
 
     // update weather
     if(validWifiConnection && !offlineMode && millis() - weatherTimer > UPDATE_WEATHER_MS && state == STATE_MAIN)
     {
         weatherTimer = millis();
-        updateWeatherTelemetry();
+        validWeather = updateWeatherTelemetry();
     }
 }

@@ -718,6 +718,17 @@ void drawSetupText()
     display.print(buff);        
 }
 
+void drawOfflineMode()
+{
+    display.fillRect(0, 41, display.width(), display.height() - 82, RGB888_TO_RGB565(0, 0, 0));
+    display.setCursor(0, 47);
+    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextSize(2, 2);
+    display.setTextWrap(true);
+    display.print("Offline mode enabled.\r\n\r\n");  
+    display.print("Reset device to enter\r\nconfiguration mode again.\r\n"); 
+}
+
 void loadAndExecuteFactoryReset(Preferences *preferences)
 {
     display.drawRect(PICKER_OFFSET_X, PICKER_OFFSET_Y, PICKER_WIDTH, PICKER_HEIGHT, RGB888_TO_RGB565(255,255,255));
@@ -776,6 +787,7 @@ void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeat
     static bool previousValidWifiConnection = !validWifiConnection;
     static bool previousValidWeather = !validWeather;
     static bool previousValidDateTime = !validDateTime;
+    static bool previousOfflineMode = !offlineMode;
     
     CONSOLE_CRLF("DISPLAY: MAIN UPDATED")
 
@@ -784,9 +796,14 @@ void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeat
         drawFixedParts();
     }
 
-    if((previousValidWifiConnection || forceAll) && !validWifiConnection)
+    if((previousValidWifiConnection || forceAll) && !validWifiConnection && !offlineMode)
     {
         drawSetupText();
+    }
+
+    if((!previousOfflineMode || forceAll) && offlineMode)
+    {
+        drawOfflineMode();
     }
 
     // update on each updateMainScreen() which happens once a second
@@ -804,7 +821,6 @@ void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeat
         CONSOLE_CRLF("  |-- WIFI SIGNAL UPDATED")
     } 
     
-    // TODO add valid wifi connection as well for all
     if((hour != prevHour || forceAll) && validDateTime)
     {
         updateHour(hour);
@@ -905,6 +921,11 @@ void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeat
     if(previousValidWeather != validWeather)
     {
         previousValidWeather = validWeather;
+    }
+
+    if(previousOfflineMode != offlineMode)
+    {
+        previousOfflineMode = offlineMode;
     }
 }
 

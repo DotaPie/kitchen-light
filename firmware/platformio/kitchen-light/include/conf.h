@@ -41,6 +41,12 @@
 #define DEFAULT_ID 100 // change this to other number if you want to force default configuration after next upload
 #define MAX_PREFERENCE_LENGTH 60
 #define FACTORY_RESET_TIMEOUT_MS 5000
+#define INVALID_WIFI_SSID "****"
+#define INVALID_WIFI_PWD "****"
+#define INVALID_TIMEZONE "****"
+#define INVALID_CITY "****"
+#define INVALID_COUNTRY_CODE "**"
+#define INVALID_API_KEY "****"
 
 // wifi
 #define WIFI_SSID_MAX_LENGTH 128
