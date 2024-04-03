@@ -161,6 +161,9 @@ void loadPreferences()
 
     CONSOLE("  |-- rng pwd: ")
     CONSOLE_CRLF(rng_pwd)
+
+    CONSOLE("  |-- number of LEDs: ")
+    CONSOLE_CRLF(numberOfLeds)
 }
 
 void update_LED_strip()
