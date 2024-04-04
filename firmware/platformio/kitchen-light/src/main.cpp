@@ -1104,7 +1104,7 @@ void saveNewParamsToPreferences(char *buff)
     index = 0;
     while(index < MAX_PREFERENCE_LENGTH)
     {
-        char c = ptr[index + 10]; // skip "timezones="
+        char c = ptr[index + 9]; // skip "timezone="
 
         if(c == '&')
         {
