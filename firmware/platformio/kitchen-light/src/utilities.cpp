@@ -30,7 +30,8 @@ const char* weatherString[] = {"NONE",
                             };
 
 const char* NTP_server_domain = "pool.ntp.org";
-const char* openWeatherServerURL_formatable = "http://api.openweathermap.org/data/2.5/weather?q=%s,%s&APPID=%s&units=metric";
+const char* openWeatherServerUrlformatableCityAndCountryCode = "http://api.openweathermap.org/data/2.5/weather?q=%s,%s&APPID=%s&units=metric";
+const char* openWeatherServerUrlformatableLatLon = "http://api.openweathermap.org/data/2.5/weather?lat=%s&lon=%s&APPID=%s&units=metric";
 
 char defaultSoftAP_ssid[MAX_SOFTAP_SSID_LENGTH] = "";
 char defaultSoftAP_pwd[MAX_SOFTAP_PWD_LENGTH] = "";

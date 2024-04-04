@@ -1,8 +1,11 @@
 #ifndef CONF_H
 #define CONF_H
 
-// dev macros
-#define DEVELOPMENT // LED strip only with 3 LEDs
+/* What is affected by development macro?
+ *
+ * 1) Soft AP SSID is always Kitchen light #1234 and Soft AP PWD is always 12345678, instead of being randomly generated on each factory reset.
+ */
+#define DEVELOPMENT
 
 // general
 #define DELAY_BEFORE_STARTUP_MS 10
@@ -13,7 +16,6 @@
 #define COLOR_ORDER GRB
 #define DEFAULT_BRIGHTNESS 16
 #define COLOR_BLENDING LINEARBLEND
-
 
 // display
 #define DISPLAY_WIDTH 240
@@ -42,6 +44,7 @@
 #define INVALID_TIMEZONE "****"
 #define INVALID_CITY "****"
 #define INVALID_COUNTRY_CODE "**"
+#define INVALID_LAT_LON "****"
 #define INVALID_API_KEY "****"
 
 // wifi
@@ -65,7 +68,8 @@
 
 // weather
 #define CITY_MAX_LENGTH 64
-#define COUNTRY_CODE_MAX_LENGTH 3
+#define COUNTRY_CODE_MAX_LENGTH 2
+#define LAT_LON_MAX_LENGTH 16
 #define API_KEY_MAX_LENGTH 128
 #define UPDATE_WEATHER_MS 600000
 #define MAX_HTTP_PAYLOAD_SIZE 4096

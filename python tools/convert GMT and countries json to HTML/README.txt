@@ -12,4 +12,4 @@ Functionality of script.py:
 	3) Converts content of downloaded json files to HTML compatible <option></option> tags to an output.txt file to the same folder as script.py with proper <label></label> and <select></select>
 
 What to do next after script.py run:
-	1) Copy content of this file to proper spot to "const char *htmlWebPageForm..." in "html.cpp"
+	1) Copy content of generated file to proper spot to "const char *htmlWebPageForm..." in "html.cpp"

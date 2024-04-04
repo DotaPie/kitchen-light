@@ -20,7 +20,8 @@ enum WEATHER {  WEATHER_NONE,
             };
 
 extern const char* NTP_server_domain;
-extern const char* openWeatherServerURL_formatable;
+extern const char* openWeatherServerUrlformatableCityAndCountryCode;
+extern const char* openWeatherServerUrlformatableLatLon;
 
 extern const char* monthNames[];
 extern const char* stateString[];

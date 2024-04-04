@@ -38,6 +38,8 @@ char wifi_pwd[WIFI_PWD_MAX_LENGTH + 1] = "";
 char timeZone[TIME_ZONE_MAX_LENGTH + 1] = ""; // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json
 char city[CITY_MAX_LENGTH + 1] = "";
 char countryCode[COUNTRY_CODE_MAX_LENGTH + 1] = "";
+char lat[LAT_LON_MAX_LENGTH + 1] = "";
+char lon[LAT_LON_MAX_LENGTH + 1] = "";
 char openWeatherAPI_key[API_KEY_MAX_LENGTH + 1] = "";
 uint16_t numberOfLeds = 0;
 uint16_t previousNumberOfLeds = 0;
@@ -74,6 +76,7 @@ void loadPreferences()
     CONSOLE("Loading preferences: ")
     preferences.begin("app", false);
 
+    // write default config
     if(preferences.getUInt("firstRun", 0) != DEFAULT_ID)
     {
         randomSeed(analogRead(UNCONNECTED_ANALOG_PIN));
@@ -88,6 +91,8 @@ void loadPreferences()
         preferences.putBytes("time-zone", INVALID_TIMEZONE, TIME_ZONE_MAX_LENGTH + 1);
         preferences.putBytes("city", INVALID_CITY, CITY_MAX_LENGTH + 1);
         preferences.putBytes("country-c", INVALID_COUNTRY_CODE, COUNTRY_CODE_MAX_LENGTH + 1);
+        preferences.putBytes("lat", INVALID_LAT_LON, LAT_LON_MAX_LENGTH + 1);
+        preferences.putBytes("lon", INVALID_LAT_LON, LAT_LON_MAX_LENGTH + 1);
         preferences.putBytes("api-key", INVALID_API_KEY, API_KEY_MAX_LENGTH + 1);
         #ifdef DEVELOPMENT
             preferences.putUInt("rng-id", 1234);
@@ -111,9 +116,10 @@ void loadPreferences()
     preferences.getBytes("wifi_ssid", wifi_ssid, WIFI_SSID_MAX_LENGTH + 1);
     preferences.getBytes("wifi_pwd", wifi_pwd, WIFI_PWD_MAX_LENGTH + 1);
     preferences.getBytes("time-zone", timeZone, TIME_ZONE_MAX_LENGTH + 1);
-
     preferences.getBytes("city", city, CITY_MAX_LENGTH + 1);
     preferences.getBytes("country-c", countryCode, COUNTRY_CODE_MAX_LENGTH + 1);
+    preferences.getBytes("lat", lat, LAT_LON_MAX_LENGTH + 1);
+    preferences.getBytes("lon", lon, LAT_LON_MAX_LENGTH + 1);
     preferences.getBytes("api-key", openWeatherAPI_key, API_KEY_MAX_LENGTH + 1);
 
     rng_id = preferences.getUInt("rng-id", 1234);
@@ -152,6 +158,12 @@ void loadPreferences()
 
     CONSOLE("  |-- country code: ");
     CONSOLE_CRLF(countryCode)
+
+    CONSOLE("  |-- lat: ");
+    CONSOLE_CRLF(lat)
+
+    CONSOLE("  |-- lon: ");
+    CONSOLE_CRLF(lon)
 
     CONSOLE("  |-- openweather API key: ");
     CONSOLE_CRLF(openWeatherAPI_key)
@@ -838,7 +850,14 @@ bool updateWeatherTelemetry()
     char serverURL[MAX_SERVER_URL_SIZE + 1] = "";  
     JsonDocument doc;
     
-    sprintf(serverURL, openWeatherServerURL_formatable, city, countryCode, openWeatherAPI_key);
+    if(strcmp(city, INVALID_CITY) != 0 && strcmp(countryCode, INVALID_COUNTRY_CODE))
+    {
+        sprintf(serverURL, openWeatherServerUrlformatableCityAndCountryCode, city, countryCode, openWeatherAPI_key);
+    }
+    else if(strcmp(lat, INVALID_LAT_LON) != 0 && strcmp(lon, INVALID_LAT_LON) != 0)
+    {
+        sprintf(serverURL, openWeatherServerUrlformatableLatLon, lat, lon, openWeatherAPI_key);   
+    }
 
     httpGETRequest(serverURL, payloadJSON);
 
@@ -919,6 +938,7 @@ void decodeUrlCodes(char *valBuff, char *valBuffFiltered)
     }           
 }
 
+// TODO: unify to 1 function
 void saveNewParamsToPreferences(char *buff)
 {
     char valBuff[MAX_PREFERENCE_LENGTH + 1] = "";
@@ -927,7 +947,7 @@ void saveNewParamsToPreferences(char *buff)
     char *ptr;
     
     // ssid
-    ptr = strstr(buff, "ssid");
+    ptr = strstr(buff, "ssid=");
     memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
     index = 0;
     while(index < MAX_PREFERENCE_LENGTH)
@@ -943,15 +963,15 @@ void saveNewParamsToPreferences(char *buff)
         valBuff[index] = c;
         index += 1; 
 
-        if(index >= WIFI_SSID_MAX_LENGTH)  
+        if(index > WIFI_SSID_MAX_LENGTH)  
         {
-            CONSOLE("PARSING PARAMETER: OVERFLOW")
+            CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
             break;
         }     
     }
 
     // pwd
-    ptr = strstr(buff, "pwd");
+    ptr = strstr(buff, "pwd=");
     memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
     index = 0;
     while(index < MAX_PREFERENCE_LENGTH)
@@ -967,63 +987,119 @@ void saveNewParamsToPreferences(char *buff)
         valBuff[index] = c;
         index += 1; 
 
-        if(index >= WIFI_PWD_MAX_LENGTH)  
+        if(index > WIFI_PWD_MAX_LENGTH)  
         {
-            CONSOLE("PARSING PARAMETER: OVERFLOW")
+            CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
             break;
         }     
     }
 
-    // city
-    ptr = strstr(buff, "city");
-    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
-    index = 0;
-    while(index < MAX_PREFERENCE_LENGTH)
+    // city + country code
+    if(strstr(buff, "location=cityAndCountryCode") != NULL)
     {
-        char c = ptr[index + 5]; // skip "city="
-
-        if(c == '&')
+        // city
+        ptr = strstr(buff, "city=");
+        memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
+        index = 0;
+        while(index < MAX_PREFERENCE_LENGTH)
         {
-            strcpy(city, valBuff);
-            break;
+            char c = ptr[index + 5]; // skip "city="
+
+            if(c == '&')
+            {
+                strcpy(city, valBuff);
+                break;
+            }
+        
+            valBuff[index] = c;
+            index += 1; 
+
+            if(index > CITY_MAX_LENGTH)  
+            {
+                CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
+                break;
+            }     
         }
-       
-        valBuff[index] = c;
-        index += 1; 
 
-        if(index >= CITY_MAX_LENGTH)  
+        // country-code
+        ptr = strstr(buff, "country-code=");
+        memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
+        index = 0;
+        while(index < MAX_PREFERENCE_LENGTH)
         {
-            CONSOLE("PARSING PARAMETER: OVERFLOW")
-            break;
-        }     
+            char c = ptr[index + 13]; // skip "country-code="
+
+            if(c == '&')
+            {
+                strcpy(countryCode, valBuff);
+                break;
+            }
+        
+            valBuff[index] = c;
+            index += 1; 
+
+            if(index > COUNTRY_CODE_MAX_LENGTH)  
+            {
+                CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
+                break;
+            }     
+        }
     }
-
-    // country-code
-    ptr = strstr(buff, "country-code");
-    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
-    index = 0;
-    while(index < MAX_PREFERENCE_LENGTH)
+    // lat + lon
+    else if(strstr(buff, "location=latLon") != NULL)
     {
-        char c = ptr[index + 13]; // skip "country-code="
-
-        if(c == '&')
+        CONSOLE_CRLF("TEST1")
+        // lat
+        ptr = strstr(buff, "lat=");
+        memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
+        index = 0;
+        while(index < MAX_PREFERENCE_LENGTH)
         {
-            strcpy(countryCode, valBuff);
-            break;
-        }
-       
-        valBuff[index] = c;
-        index += 1; 
+            char c = ptr[index + 4]; // skip "lat="
 
-        if(index >= COUNTRY_CODE_MAX_LENGTH)  
+            if(c == '&')
+            {
+                strcpy(lat, valBuff);
+                break;
+            }
+        
+            valBuff[index] = c;
+            index += 1; 
+
+            if(index > LAT_LON_MAX_LENGTH)  
+            {
+                CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
+                break;
+            }     
+        }  
+
+        // lon
+        ptr = strstr(buff, "lon=");
+        memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
+        index = 0;
+        while(index < MAX_PREFERENCE_LENGTH)
         {
-            CONSOLE("PARSING PARAMETER: OVERFLOW")
-            break;
-        }     
+            char c = ptr[index + 4]; // skip "lon="
+
+            if(c == '&')
+            {
+                strcpy(lon, valBuff);
+                break;
+            }
+        
+            valBuff[index] = c;
+            index += 1; 
+
+            if(index > LAT_LON_MAX_LENGTH)  
+            {
+                CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
+                break;
+            }     
+        }    
     }
 
     // time zone
-    ptr = strstr(buff, "timezones");
+    ptr = strstr(buff, "timezone=");
     memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
     index = 0;
     while(index < MAX_PREFERENCE_LENGTH)
@@ -1041,14 +1117,14 @@ void saveNewParamsToPreferences(char *buff)
         valBuff[index] = c;
         index += 1;   
 
-        if(index >= TIME_ZONE_MAX_LENGTH)  
+        if(index > TIME_ZONE_MAX_LENGTH)  
         {
-            CONSOLE("PARSING PARAMETER: OVERFLOW")
+            CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
             break;
         }    
     }
 
-    ptr = strstr(buff, "api-key");
+    ptr = strstr(buff, "api-key=");
     memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
     index = 0;
     while(index < MAX_PREFERENCE_LENGTH)
@@ -1065,7 +1141,7 @@ void saveNewParamsToPreferences(char *buff)
         valBuff[index] = c;
         index += 1;   
 
-        if(index >= API_KEY_MAX_LENGTH)  
+        if(index > API_KEY_MAX_LENGTH)  
         {
             CONSOLE("PARSING PARAMETER: OVERFLOW")
             break;
@@ -1074,9 +1150,19 @@ void saveNewParamsToPreferences(char *buff)
 
     preferences.putBytes("wifi_ssid", wifi_ssid, WIFI_SSID_MAX_LENGTH + 1);
     preferences.putBytes("wifi_pwd", wifi_pwd, WIFI_PWD_MAX_LENGTH + 1);
+    
+    if(strstr(buff, "location=cityAndCountryCode") != NULL)
+    {
+        preferences.putBytes("city", city, CITY_MAX_LENGTH + 1);
+        preferences.putBytes("country-c", countryCode, COUNTRY_CODE_MAX_LENGTH + 1);
+    }
+    else if(strstr(buff, "location=latLon") != NULL)
+    {
+        preferences.putBytes("lat", lat, LAT_LON_MAX_LENGTH + 1);
+        preferences.putBytes("lon", lon, LAT_LON_MAX_LENGTH + 1);    
+    }
+    
     preferences.putBytes("time-zone", timeZone, TIME_ZONE_MAX_LENGTH + 1);
-    preferences.putBytes("city", city, CITY_MAX_LENGTH + 1);
-    preferences.putBytes("country-c", countryCode, COUNTRY_CODE_MAX_LENGTH + 1);
     preferences.putBytes("api-key", openWeatherAPI_key, API_KEY_MAX_LENGTH + 1);
 }
 
@@ -1119,12 +1205,11 @@ void handleServerClients()
 
                 // if request contains form data in URL, parse it, save it, send back ack html page and reboot
                 if(  
-                    strstr(buff, "ssid") != NULL &&
-                    strstr(buff, "pwd") != NULL &&
-                    strstr(buff, "city") != NULL &&
-                    strstr(buff, "country-code") != NULL &&
-                    strstr(buff, "timezones") != NULL &&
-                    strstr(buff, "api-key") != NULL
+                    strstr(buff, "ssid=") != NULL &&
+                    strstr(buff, "pwd=") != NULL &&
+                    strstr(buff, "location=") != NULL &&
+                    strstr(buff, "timezone=") != NULL &&
+                    strstr(buff, "api-key=") != NULL
                 )
                 {
                     CONSOLE_CRLF("SERVER: SETUP PACKET RECEIVED")
@@ -1133,7 +1218,15 @@ void handleServerClients()
                     CONSOLE_CRLF("SERVER: SAVING NEW PARAMETERS TO PREFERENCES")
                     saveNewParamsToPreferences(buff);   
 
-                    sprintf(buff, htmlWebPageCompleteFormatter, wifi_ssid, wifi_pwd, city, countryCode, timeZone, openWeatherAPI_key);
+                    if(strstr(buff, "location=cityAndCountryCode") != NULL)
+                    {
+                        sprintf(buff, htmlWebPageCompleteFormatterCityAndCountryCode, wifi_ssid, wifi_pwd, city, countryCode, timeZone, openWeatherAPI_key);
+                    }
+                    else if(strstr(buff, "location=latLon") != NULL)
+                    {
+                        sprintf(buff, htmlWebPageCompleteFormatterLatAndLon, wifi_ssid, wifi_pwd, lat, lon, timeZone, openWeatherAPI_key);
+                    }
+                    
                     client.print(buff);  
                     client.flush();
                     delay(1000); // sometimes flush was not enaugh
