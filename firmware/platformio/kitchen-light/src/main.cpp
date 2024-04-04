@@ -19,8 +19,8 @@
 #include <ArduinoJson.h>
 
 // core globals
-STATE state = STATE_MAIN; 
-STATE previousState = STATE_NONE;
+STATE state = STATE::MAIN; 
+STATE previousState = STATE::NONE;
 bool validWifiConnection = false; // true if connected to wi-fi, internet connection does not matter here
 Preferences preferences;
 
@@ -525,9 +525,9 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
         CONSOLE("  |-- direction: ")
         CONSOLE_CRLF(encoder_1_direction)
 
-        if(state != STATE_BRIGHTNESS)
+        if(state != STATE::BRIGHTNESS)
         {
-            state = STATE_BRIGHTNESS;
+            state = STATE::BRIGHTNESS;
         }    
         else
         {
@@ -547,9 +547,9 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
         CONSOLE("  |-- direction: ")
         CONSOLE_CRLF(encoder_2_direction)
 
-        if(state != STATE_COLOR)
+        if(state != STATE::COLOR)
         {
-            state = STATE_COLOR;
+            state = STATE::COLOR;
         } 
         else
         {
@@ -566,7 +566,7 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
 
     if(encoder_1_switch == LOW && encoder_2_switch == LOW)
     {
-        state = STATE_FACTORY_RESET;
+        state = STATE::FACTORY_RESET;
     }
     else
     {
@@ -575,13 +575,13 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
             encoder_1_switch_debounce_timer = millis();
             *rotary_encoder_timer = millis();
 
-            if(state == STATE_BRIGHTNESS)
+            if(state == STATE::BRIGHTNESS)
             {
                 // unused - reserved
             }
-            else if(state == STATE_MAIN || state == STATE_COLOR)
+            else if(state == STATE::MAIN || state == STATE::COLOR)
             {
-                state = STATE_BRIGHTNESS;
+                state = STATE::BRIGHTNESS;
             }      
         }
 
@@ -590,15 +590,15 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
             encoder_2_switch_debounce_timer = millis();
             *rotary_encoder_timer = millis();
 
-            if(state == STATE_COLOR)
+            if(state == STATE::COLOR)
             {
                 current_CPT = (current_CPT == CPT_COLOR_TEMPERATURE) ? CPT_COLOR_HUE : CPT_COLOR_TEMPERATURE;  
                 CONSOLE("COLOR PICKER TYPE CHANGE: ")  
                 CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT])  
             }  
-            else if(state == STATE_MAIN || state == STATE_BRIGHTNESS)
+            else if(state == STATE::MAIN || state == STATE::BRIGHTNESS)
             {
-                state = STATE_COLOR;
+                state = STATE::COLOR;
             }   
         }
     }
@@ -1289,7 +1289,7 @@ void setup()
         enableAP();
     }
 
-    state = STATE_MAIN;
+    state = STATE::MAIN;
     
     CONSOLE_CRLF("~~~ LOOP ~~~")
 }
@@ -1307,9 +1307,9 @@ void loop()
     checkRotaryEncoders(&rotary_encoder_timer);
 
     // auto state change to main after period of time
-    if((state == STATE_BRIGHTNESS || state == STATE_COLOR) && millis() - rotary_encoder_timer > ANY_SETTING_SCREEN_TIMER_MS)
+    if((state == STATE::BRIGHTNESS || state == STATE::COLOR) && millis() - rotary_encoder_timer > ANY_SETTING_SCREEN_TIMER_MS)
     {
-        state = STATE_MAIN;
+        state = STATE::MAIN;
     }
 
     // handle state change
@@ -1320,7 +1320,7 @@ void loop()
         CONSOLE("STATE CHANGE: ");
         CONSOLE_CRLF(stateString[(uint8_t)state])
 
-        if(state == STATE_MAIN)
+        if(state == STATE::MAIN)
         {
             // in case there has been any changes to preferences
             updateColorAndBrightnessPreferences();
@@ -1338,12 +1338,12 @@ void loop()
             clearDisplay();
             updateMainScreen(offlineMode, validWifiConnection, validWeather, validDateTime, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
         }
-        else if(state == STATE_BRIGHTNESS)
+        else if(state == STATE::BRIGHTNESS)
         {
             clearDisplay();
             loadDisplayBrightness(currentBrightness);  
         }
-        else if(state == STATE_COLOR) // handle transition from "state = STATE_MAIN" to "state == STATE_COLOR" 
+        else if(state == STATE::COLOR)
         {
             CONSOLE("  |-- color picker type: ")
             CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT]);
@@ -1359,19 +1359,19 @@ void loop()
                 loadDisplayColorHue(currentColorHueIndex, previousColorHueIndex);  
             }
         }
-        else if(state == STATE_FACTORY_RESET)
+        else if(state == STATE::FACTORY_RESET)
         {
             clearDisplay();
-            loadAndExecuteFactoryReset(&preferences); // this function is blocking loop, either ends up in reset or continue
+            loadAndExecuteFactoryReset(&preferences); // this function is blocking loop, either ends up in reset or continue to main state
 
             encoder_1_switch_debounce_timer = millis();
             encoder_2_switch_debounce_timer = millis();
-            state = STATE_MAIN;
+            state = STATE::MAIN;
         }
     }
 
-    // handle CPT change (state remains STATE_COLOR)
-    if(current_CPT != previous_CPT && state == STATE_COLOR) 
+    // handle CPT change (state remains STATE::COLOR)
+    if(current_CPT != previous_CPT && state == STATE::COLOR) 
     {
         previous_CPT = current_CPT;
 
@@ -1393,7 +1393,7 @@ void loop()
     }
 
     // once a second update local datetime, wifi signal and main screen (if anything needs update)
-    if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE_MAIN)
+    if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE::MAIN)
     {
         mainScreenTimer = millis();
 
@@ -1423,14 +1423,14 @@ void loop()
     }
 
     // sync datetime
-    if(validWifiConnection && !offlineMode && dayOfTimeSync != timeInfo.tm_mday && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && state == STATE_MAIN)
+    if(validWifiConnection && !offlineMode && dayOfTimeSync != timeInfo.tm_mday && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && state == STATE::MAIN)
     {
         dayOfTimeSync = timeInfo.tm_mday;
         syncDateTime(false, LOOP_SYNC_DATE_TIME_TIMEOUT_MS); // verification of datetime sync will be chcecked each second, we ignore return here
     }
 
     // update weather
-    if(validWifiConnection && !offlineMode && millis() - weatherTimer > UPDATE_WEATHER_MS && state == STATE_MAIN)
+    if(validWifiConnection && !offlineMode && millis() - weatherTimer > UPDATE_WEATHER_MS && state == STATE::MAIN)
     {
         weatherTimer = millis();
         validWeather = updateWeatherTelemetry();
