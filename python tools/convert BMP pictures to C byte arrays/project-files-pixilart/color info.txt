@@ -1,5 +1,5 @@
 sun: 255 174 0
-moon: 245 228 156
+moon: 255 174 0
 cloud: 232 232 232
 darker cloud: 92 92 92
 rain: 153 217 234
