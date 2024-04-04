@@ -1342,6 +1342,8 @@ void loop()
 
             updateWifiSignal();
             clearDisplay();
+
+            // TODO: fake validDateTime as true for short period of time (15s tops) after sync command, so we dont have empty datetime on display
             updateMainScreen(offlineMode, validWifiConnection, validWeather, validDateTime, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
         }
         else if(state == ScreenState::BRIGHTNESS)
