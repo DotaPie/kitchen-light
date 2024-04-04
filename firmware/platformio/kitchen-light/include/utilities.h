@@ -4,20 +4,20 @@
 #include <FastLED.h>
 #include "conf.h"
 
-enum class STATE {NONE, MAIN, BRIGHTNESS, COLOR, FACTORY_RESET};
-enum COLOR_PICKER_TYPE {CPT_NONE, CPT_COLOR_TEMPERATURE, CPT_COLOR_HUE};
-enum WIFI_SIGNAL {WIFI_SIGNAL_NONE, WIFI_SIGNAL_DISCONNECTED, WIFI_SIGNAL_BAD, WIFI_SIGNAL_GOOD, WIFI_SIGNAL_EXCELLENT};
-enum WEATHER {  WEATHER_NONE, 
-                WEATHER_CLEAR_SKY_DAY, WEATHER_CLEAR_SKY_NIGHT,
-                WEATHER_FEW_CLOUDS_DAY, WEATHER_FEW_CLOUDS_NIGHT,
-                WEATHER_SCATTERED_CLOUDS_DAY, WEATHER_SCATTERED_CLOUDS_NIGHT,
-                WEATHER_BROKEN_CLOUDS_DAY, WEATHER_BROKEN_CLOUDS_NIGHT,
-                WEATHER_SHOWER_RAIN_DAY, WEATHER_SHOWER_RAIN_NIGHT,
-                WEATHER_RAIN_DAY, WEATHER_RAIN_NIGHT,
-                WEATHER_THUNDERSTORM_DAY, WEATHER_THUNDERSTORM_NIGHT,
-                WEATHER_SNOW_DAY, WEATHER_SNOW_NIGHT,
-                WEATHER_MIST_DAY, WEATHER_MIST_NIGHT
-            };
+enum class ScreenState {NONE, MAIN, BRIGHTNESS, COLOR};
+enum class ColorPickerType {NONE, COLOR_TEMPERATURE, COLOR_HUE};
+enum class WifiSignal {NONE, DISCONNECTED, BAD, GOOD, EXCELLENT};
+enum class Weather {    NONE, 
+                        CLEAR_SKY_DAY, CLEAR_SKY_NIGHT,
+                        FEW_CLOUDS_DAY, FEW_CLOUDS_NIGHT,
+                        SCATTERED_CLOUDS_DAY, SCATTERED_CLOUDS_NIGHT,
+                        BROKEN_CLOUDS_DAY, BROKEN_CLOUDS_NIGHT,
+                        SHOWER_RAIN_DAY, SHOWER_RAIN_NIGHT,
+                        RAIN_DAY, RAIN_NIGHT,
+                        THUNDERSTORM_DAY, THUNDERSTORM_NIGHT,
+                        SNOW_DAY, SNOW_NIGHT,
+                        MIST_DAY, MIST_NIGHT
+                    };
 
 extern const char* NTP_server_domain;
 extern const char* openWeatherServerUrlformatableCityAndCountryCode;

@@ -468,23 +468,23 @@ void drawWifiSignalExcellent()
     display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, RGB888_TO_RGB565(0, 0, 0));
 }
 
-void updateWifiSignal(WIFI_SIGNAL wifiSignal)
+void updateWifiSignal(WifiSignal wifiSignal)
 {
     switch(wifiSignal)
     {
-        case WIFI_SIGNAL_DISCONNECTED:
+        case WifiSignal::DISCONNECTED:
             drawWifiSignalDisconnected();
             break;
 
-        case WIFI_SIGNAL_BAD:
+        case WifiSignal::BAD:
             drawWifiSignalBad();
             break;
         
-        case WIFI_SIGNAL_GOOD:
+        case WifiSignal::GOOD:
             drawWifiSignalGood();
             break;
         
-        case WIFI_SIGNAL_EXCELLENT:
+        case WifiSignal::EXCELLENT:
             drawWifiSignalExcellent();
             break;
 
@@ -628,81 +628,81 @@ void drawRGB565_filtered(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const u
     display.endWrite();  
 }
 
-void updateWeather(WEATHER weather)
+void updateWeather(Weather weather)
 {
     display.fillRect(display.width() * 3/4 + 1, display.height() - 39, display.width() - 1, 39, RGB888_TO_RGB565(0, 0, 0)); 
 
     switch(weather)
     {
-        case WEATHER_CLEAR_SKY_DAY:
+        case Weather::CLEAR_SKY_DAY:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
-        case WEATHER_CLEAR_SKY_NIGHT:
+        case Weather::CLEAR_SKY_NIGHT:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01n, RGB888_TO_RGB565(0, 0, 0));
             break;
         
-        case WEATHER_FEW_CLOUDS_DAY:
+        case Weather::FEW_CLOUDS_DAY:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
-        case WEATHER_FEW_CLOUDS_NIGHT:
+        case Weather::FEW_CLOUDS_NIGHT:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
-        case WEATHER_SCATTERED_CLOUDS_DAY:
+        case Weather::SCATTERED_CLOUDS_DAY:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
-        case WEATHER_SCATTERED_CLOUDS_NIGHT:
+        case Weather::SCATTERED_CLOUDS_NIGHT:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
-        case WEATHER_BROKEN_CLOUDS_DAY:
+        case Weather::BROKEN_CLOUDS_DAY:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
-        case WEATHER_BROKEN_CLOUDS_NIGHT:
+        case Weather::BROKEN_CLOUDS_NIGHT:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
-        case WEATHER_SHOWER_RAIN_DAY:
+        case Weather::SHOWER_RAIN_DAY:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
-        case WEATHER_SHOWER_RAIN_NIGHT:
+        case Weather::SHOWER_RAIN_NIGHT:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
-        case WEATHER_RAIN_DAY:
+        case Weather::RAIN_DAY:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
-        case WEATHER_RAIN_NIGHT:
+        case Weather::RAIN_NIGHT:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
-        case WEATHER_THUNDERSTORM_DAY:
+        case Weather::THUNDERSTORM_DAY:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
-        case WEATHER_THUNDERSTORM_NIGHT:
+        case Weather::THUNDERSTORM_NIGHT:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
-        case WEATHER_SNOW_DAY:
+        case Weather::SNOW_DAY:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
-        case WEATHER_SNOW_NIGHT:
+        case Weather::SNOW_NIGHT:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13n, RGB888_TO_RGB565(0, 0, 0));
             break;
             
-        case WEATHER_MIST_DAY:
+        case Weather::MIST_DAY:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50d, RGB888_TO_RGB565(0, 0, 0));
             break;
 
-        case WEATHER_MIST_NIGHT:
+        case Weather::MIST_NIGHT:
             drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50n, RGB888_TO_RGB565(0, 0, 0));
             break;
 
@@ -819,7 +819,7 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
     ESP.restart();
 }
 
-void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, WEATHER weather, WIFI_SIGNAL wifiSignal)
+void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, Weather weather, WifiSignal wifiSignal)
 {
     // track previous values
     static uint8_t prevHour = 255; 
@@ -830,8 +830,8 @@ void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeat
     static float prevTemperature = -273.15;  
     static uint8_t prevHumidity = 255;
     static float prevWindSpeed = -1.0;
-    static WIFI_SIGNAL prevWifiSignal = WIFI_SIGNAL_NONE;
-    static WEATHER prevWeather = WEATHER_NONE;
+    static WifiSignal prevWifiSignal = WifiSignal::NONE;
+    static Weather prevWeather = Weather::NONE;
 
     static bool doubledotVisible = false;
 

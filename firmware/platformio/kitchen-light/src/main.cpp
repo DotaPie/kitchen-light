@@ -19,13 +19,13 @@
 #include <ArduinoJson.h>
 
 // core globals
-STATE state = STATE::MAIN; 
-STATE previousState = STATE::NONE;
+ScreenState state = ScreenState::MAIN; 
+ScreenState previousState = ScreenState::NONE;
 bool validWifiConnection = false; // true if connected to wi-fi, internet connection does not matter here
 Preferences preferences;
 
 // preferences globals: will be loaded in setup -> loadPreferences();
-COLOR_PICKER_TYPE current_CPT, previous_CPT;
+ColorPickerType current_CPT, previous_CPT;
 uint16_t currentColorHueIndex, previousColorHueIndex;
 uint16_t currentColorTemperatureIndex, previousColorTemperatureIndex;
 uint8_t currentBrightness, previousBrightness;
@@ -56,8 +56,8 @@ uint32_t encoder_2_switch_debounce_timer = 0;
 float temperature_C = -273.15;
 uint8_t humidity = 255;
 float windSpeed = -1.0;
-WIFI_SIGNAL wifiSignal = WIFI_SIGNAL_DISCONNECTED;
-WEATHER weather = WEATHER_NONE;
+WifiSignal wifiSignal = WifiSignal::DISCONNECTED;
+Weather weather = Weather::NONE;
 bool validWeather = false;
 
 // time sync globals
@@ -82,7 +82,7 @@ void loadPreferences()
         randomSeed(analogRead(UNCONNECTED_ANALOG_PIN));
         firstTimeRun = true;
         preferences.putUInt("firstRun", DEFAULT_ID);
-        preferences.putUChar("CPT", (uint8_t)CPT_COLOR_TEMPERATURE);
+        preferences.putUChar("CPT", (uint8_t)ColorPickerType::COLOR_TEMPERATURE);
         preferences.putUInt("color-hue", 0);
         preferences.putUInt("color-t", 0);
         preferences.putUChar("brightness", DEFAULT_BRIGHTNESS);
@@ -104,7 +104,7 @@ void loadPreferences()
         preferences.putUInt("n-leds", 0);
     }
 
-    current_CPT = (COLOR_PICKER_TYPE)preferences.getUChar("CPT", (uint8_t)CPT_NONE);  
+    current_CPT = (ColorPickerType)preferences.getUChar("CPT", (uint8_t)ColorPickerType::NONE);  
     previous_CPT = current_CPT;
     currentColorHueIndex = preferences.getUInt("color-hue", 0); 
     previousColorHueIndex = currentColorHueIndex;
@@ -180,7 +180,7 @@ void loadPreferences()
 
 void update_LED_strip()
 {
-    CRGB color = (current_CPT == CPT_COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);
+    CRGB color = (current_CPT == ColorPickerType::COLOR_HUE) ? calculateColorHueFromPickerPosition(currentColorHueIndex) : calculateColorTemperatureFromPickerPosition(currentColorTemperatureIndex);
     
     for(uint16_t i = 0; i < numberOfLeds; i++)
     {
@@ -525,9 +525,9 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
         CONSOLE("  |-- direction: ")
         CONSOLE_CRLF(encoder_1_direction)
 
-        if(state != STATE::BRIGHTNESS)
+        if(state != ScreenState::BRIGHTNESS)
         {
-            state = STATE::BRIGHTNESS;
+            state = ScreenState::BRIGHTNESS;
         }    
         else
         {
@@ -547,17 +547,17 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
         CONSOLE("  |-- direction: ")
         CONSOLE_CRLF(encoder_2_direction)
 
-        if(state != STATE::COLOR)
+        if(state != ScreenState::COLOR)
         {
-            state = STATE::COLOR;
+            state = ScreenState::COLOR;
         } 
         else
         {
-            if(current_CPT == CPT_COLOR_TEMPERATURE)
+            if(current_CPT == ColorPickerType::COLOR_TEMPERATURE)
             {
                 updateColorTemperature(encoder_2_direction);
             }
-            else if(current_CPT == CPT_COLOR_HUE)
+            else if(current_CPT == ColorPickerType::COLOR_HUE)
             {
                 updateColorHue(encoder_2_direction);
             }
@@ -566,7 +566,13 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
 
     if(encoder_1_switch == LOW && encoder_2_switch == LOW)
     {
-        state = STATE::FACTORY_RESET;
+        clearDisplay();
+        loadAndExecuteFactoryReset(&preferences); // this function is blocking, either ends up in reset or continue to main state
+
+        encoder_1_switch_debounce_timer = millis();
+        encoder_2_switch_debounce_timer = millis();
+
+        state = ScreenState::MAIN;
     }
     else
     {
@@ -575,13 +581,13 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
             encoder_1_switch_debounce_timer = millis();
             *rotary_encoder_timer = millis();
 
-            if(state == STATE::BRIGHTNESS)
+            if(state == ScreenState::BRIGHTNESS)
             {
                 // unused - reserved
             }
-            else if(state == STATE::MAIN || state == STATE::COLOR)
+            else if(state == ScreenState::MAIN || state == ScreenState::COLOR)
             {
-                state = STATE::BRIGHTNESS;
+                state = ScreenState::BRIGHTNESS;
             }      
         }
 
@@ -590,15 +596,15 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
             encoder_2_switch_debounce_timer = millis();
             *rotary_encoder_timer = millis();
 
-            if(state == STATE::COLOR)
+            if(state == ScreenState::COLOR)
             {
-                current_CPT = (current_CPT == CPT_COLOR_TEMPERATURE) ? CPT_COLOR_HUE : CPT_COLOR_TEMPERATURE;  
+                current_CPT = (current_CPT == ColorPickerType::COLOR_TEMPERATURE) ? ColorPickerType::COLOR_HUE : ColorPickerType::COLOR_TEMPERATURE;  
                 CONSOLE("COLOR PICKER TYPE CHANGE: ")  
                 CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT])  
             }  
-            else if(state == STATE::MAIN || state == STATE::BRIGHTNESS)
+            else if(state == ScreenState::MAIN || state == ScreenState::BRIGHTNESS)
             {
-                state = STATE::COLOR;
+                state = ScreenState::COLOR;
             }   
         }
     }
@@ -606,7 +612,7 @@ void checkRotaryEncoders(uint32_t *rotary_encoder_timer)
 
 void updateColorAndBrightnessPreferences()
 {
-    if(current_CPT != (COLOR_PICKER_TYPE)preferences.getUChar("CPT"))
+    if(current_CPT != (ColorPickerType)preferences.getUChar("CPT"))
     {
         preferences.putUChar("CPT", (uint8_t)current_CPT);
     }
@@ -635,19 +641,19 @@ void updateWifiSignal()
 
     if(!validWifiConnection)
     {
-        wifiSignal = WIFI_SIGNAL_DISCONNECTED;    
+        wifiSignal = WifiSignal::DISCONNECTED;    
     }
     else if(rssi < -75)
     {
-        wifiSignal = WIFI_SIGNAL_BAD;
+        wifiSignal = WifiSignal::BAD;
     } 
     else if(rssi >= -75 && rssi < -55) 
     {
-        wifiSignal = WIFI_SIGNAL_GOOD;    
+        wifiSignal = WifiSignal::GOOD;    
     }
     else if(rssi >= -55)
     {
-        wifiSignal = WIFI_SIGNAL_EXCELLENT;
+        wifiSignal = WifiSignal::EXCELLENT;
     } 
 
     CONSOLE_CRLF("OK")
@@ -681,7 +687,7 @@ bool setupWifi()
 
             WiFi.disconnect();
 
-            wifiSignal = WIFI_SIGNAL_DISCONNECTED;
+            wifiSignal = WifiSignal::DISCONNECTED;
             return false;
         }
         
@@ -768,79 +774,79 @@ void updateWeather(const char* openweatherIconString)
 {
     if(strcmp(openweatherIconString, "01d") == 0)
     {
-        weather = WEATHER_CLEAR_SKY_DAY;
+        weather = Weather::CLEAR_SKY_DAY;
     }
     else if(strcmp(openweatherIconString, "01n") == 0)
     {
-        weather = WEATHER_CLEAR_SKY_NIGHT;
+        weather = Weather::CLEAR_SKY_NIGHT;
     }
     else if(strcmp(openweatherIconString, "02d") == 0)
     {
-        weather = WEATHER_FEW_CLOUDS_DAY;
+        weather = Weather::FEW_CLOUDS_DAY;
     }
     else if(strcmp(openweatherIconString, "02n") == 0)
     {
-        weather = WEATHER_FEW_CLOUDS_NIGHT;
+        weather = Weather::FEW_CLOUDS_NIGHT;
     }
     else if(strcmp(openweatherIconString, "03d") == 0)
     {
-        weather = WEATHER_SCATTERED_CLOUDS_DAY;
+        weather = Weather::SCATTERED_CLOUDS_DAY;
     }
     else if(strcmp(openweatherIconString, "03n") == 0)
     {
-        weather = WEATHER_SCATTERED_CLOUDS_NIGHT;
+        weather = Weather::SCATTERED_CLOUDS_NIGHT;
     }
     else if(strcmp(openweatherIconString, "04d") == 0)
     {
-        weather = WEATHER_BROKEN_CLOUDS_DAY;
+        weather = Weather::BROKEN_CLOUDS_DAY;
     }
     else if(strcmp(openweatherIconString, "04n") == 0)
     {
-        weather = WEATHER_BROKEN_CLOUDS_NIGHT;
+        weather = Weather::BROKEN_CLOUDS_NIGHT;
     }
     else if(strcmp(openweatherIconString, "09d") == 0)
     {
-        weather = WEATHER_SHOWER_RAIN_DAY;
+        weather = Weather::SHOWER_RAIN_DAY;
     }
     else if(strcmp(openweatherIconString, "09n") == 0)
     {
-        weather = WEATHER_SHOWER_RAIN_NIGHT;
+        weather = Weather::SHOWER_RAIN_NIGHT;
     }
     else if(strcmp(openweatherIconString, "10d") == 0)
     {
-        weather = WEATHER_RAIN_DAY;
+        weather = Weather::RAIN_DAY;
     }
     else if(strcmp(openweatherIconString, "10n") == 0)
     {
-        weather = WEATHER_RAIN_NIGHT;
+        weather = Weather::RAIN_NIGHT;
     }
     else if(strcmp(openweatherIconString, "11d") == 0)
     {
-        weather = WEATHER_THUNDERSTORM_DAY;
+        weather = Weather::THUNDERSTORM_DAY;
     }
     else if(strcmp(openweatherIconString, "11n") == 0)
     {
-        weather = WEATHER_THUNDERSTORM_NIGHT;
+        weather = Weather::THUNDERSTORM_NIGHT;
     }
     else if(strcmp(openweatherIconString, "13d") == 0)
     {
-        weather = WEATHER_SNOW_DAY;
+        weather = Weather::SNOW_DAY;
     }
     else if(strcmp(openweatherIconString, "13n") == 0)
     {
-        weather = WEATHER_SNOW_DAY;
+        weather = Weather::SNOW_DAY;
     }
     else if(strcmp(openweatherIconString, "50d") == 0)
     {
-        weather = WEATHER_MIST_DAY;
+        weather = Weather::MIST_DAY;
     }
     else if(strcmp(openweatherIconString, "50n") == 0)
     {
-        weather = WEATHER_MIST_NIGHT;
+        weather = Weather::MIST_NIGHT;
     }
     else
     {
-        weather = WEATHER_NONE;
+        weather = Weather::NONE;
     }
 }
 
@@ -1289,7 +1295,7 @@ void setup()
         enableAP();
     }
 
-    state = STATE::MAIN;
+    state = ScreenState::MAIN;
     
     CONSOLE_CRLF("~~~ LOOP ~~~")
 }
@@ -1307,9 +1313,9 @@ void loop()
     checkRotaryEncoders(&rotary_encoder_timer);
 
     // auto state change to main after period of time
-    if((state == STATE::BRIGHTNESS || state == STATE::COLOR) && millis() - rotary_encoder_timer > ANY_SETTING_SCREEN_TIMER_MS)
+    if((state == ScreenState::BRIGHTNESS || state == ScreenState::COLOR) && millis() - rotary_encoder_timer > ANY_SETTING_SCREEN_TIMER_MS)
     {
-        state = STATE::MAIN;
+        state = ScreenState::MAIN;
     }
 
     // handle state change
@@ -1317,10 +1323,10 @@ void loop()
     {
         previousState = state;
 
-        CONSOLE("STATE CHANGE: ");
+        CONSOLE("ScreenState CHANGE: ");
         CONSOLE_CRLF(stateString[(uint8_t)state])
 
-        if(state == STATE::MAIN)
+        if(state == ScreenState::MAIN)
         {
             // in case there has been any changes to preferences
             updateColorAndBrightnessPreferences();
@@ -1338,40 +1344,31 @@ void loop()
             clearDisplay();
             updateMainScreen(offlineMode, validWifiConnection, validWeather, validDateTime, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
         }
-        else if(state == STATE::BRIGHTNESS)
+        else if(state == ScreenState::BRIGHTNESS)
         {
             clearDisplay();
             loadDisplayBrightness(currentBrightness);  
         }
-        else if(state == STATE::COLOR)
+        else if(state == ScreenState::COLOR)
         {
             CONSOLE("  |-- color picker type: ")
             CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT]);
 
             clearDisplay();
 
-            if(current_CPT == CPT_COLOR_TEMPERATURE)
+            if(current_CPT == ColorPickerType::COLOR_TEMPERATURE)
             {
                 loadDisplayColorTemperature(currentColorTemperatureIndex, previousColorTemperatureIndex);
             }
-            else if(current_CPT == CPT_COLOR_HUE)
+            else if(current_CPT == ColorPickerType::COLOR_HUE)
             {
                 loadDisplayColorHue(currentColorHueIndex, previousColorHueIndex);  
             }
         }
-        else if(state == STATE::FACTORY_RESET)
-        {
-            clearDisplay();
-            loadAndExecuteFactoryReset(&preferences); // this function is blocking loop, either ends up in reset or continue to main state
-
-            encoder_1_switch_debounce_timer = millis();
-            encoder_2_switch_debounce_timer = millis();
-            state = STATE::MAIN;
-        }
     }
 
-    // handle CPT change (state remains STATE::COLOR)
-    if(current_CPT != previous_CPT && state == STATE::COLOR) 
+    // handle CPT change (state remains ScreenState::COLOR)
+    if(current_CPT != previous_CPT && state == ScreenState::COLOR) 
     {
         previous_CPT = current_CPT;
 
@@ -1380,12 +1377,12 @@ void loop()
 
         clearDisplay(); 
 
-        if(current_CPT == CPT_COLOR_TEMPERATURE)
+        if(current_CPT == ColorPickerType::COLOR_TEMPERATURE)
         {
             loadDisplayColorTemperature(currentColorTemperatureIndex, previousColorTemperatureIndex);
             updateColorTemperature(0); // force color change without direction from encoder
         }
-        else if(current_CPT == CPT_COLOR_HUE)
+        else if(current_CPT == ColorPickerType::COLOR_HUE)
         {
             loadDisplayColorHue(currentColorHueIndex, previousColorHueIndex);
             updateColorHue(0); // force color change without direction from encoder  
@@ -1393,7 +1390,7 @@ void loop()
     }
 
     // once a second update local datetime, wifi signal and main screen (if anything needs update)
-    if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == STATE::MAIN)
+    if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == ScreenState::MAIN)
     {
         mainScreenTimer = millis();
 
@@ -1423,14 +1420,14 @@ void loop()
     }
 
     // sync datetime
-    if(validWifiConnection && !offlineMode && dayOfTimeSync != timeInfo.tm_mday && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && state == STATE::MAIN)
+    if(validWifiConnection && !offlineMode && dayOfTimeSync != timeInfo.tm_mday && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && state == ScreenState::MAIN)
     {
         dayOfTimeSync = timeInfo.tm_mday;
         syncDateTime(false, LOOP_SYNC_DATE_TIME_TIMEOUT_MS); // verification of datetime sync will be chcecked each second, we ignore return here
     }
 
     // update weather
-    if(validWifiConnection && !offlineMode && millis() - weatherTimer > UPDATE_WEATHER_MS && state == STATE::MAIN)
+    if(validWifiConnection && !offlineMode && millis() - weatherTimer > UPDATE_WEATHER_MS && state == ScreenState::MAIN)
     {
         weatherTimer = millis();
         validWeather = updateWeatherTelemetry();

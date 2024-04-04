@@ -14,11 +14,11 @@ const char* monthNames[] = {"Jan",
                             "Nov",
                             "Dec"};
 
-const char* stateString[] = {"NONE", "MAIN", "BRIGHTNESS", "COLOR", "FACTORY_RESET"};
+const char* stateString[] = {"NONE", "MAIN", "BRIGHTNESS", "COLOR"};
 const char* CPT_String[] = {"NONE", "COLOR_TEMPERATURE", "COLOR_HUE"};
-const char* wifiSignalString[] = {"WIFI_SIGNAL_NONE", "WIFI_SIGNAL_DISCONNECTED", "WIFI_SIGNAL_BAD", "WIFI_SIGNAL_GOOD", "WIFI_SIGNAL_EXCELLENT"};
+const char* wifiSignalString[] = {"NONE", "DISCONNECTED", "BAD", "GOOD", "EXCELLENT"};
 const char* weatherString[] = {"NONE", 
-                                "CLEAR_SKY_DAY", "CLEAR_SKY_NIGHT",
+                                "CLEAR_CLEAR_SKY_DAY", "CLEAR_CLEAR_SKY_NIGHT",
                                 "FEW_CLOUDS_DAY", "FEW_CLOUDS_NIGHT",
                                 "SCATTERED_CLOUDS_DAY", "SCATTERED_CLOUDS_NIGHT",
                                 "BROKEN_CLOUDS_DAY", "BROKEN_CLOUDS_NIGHT",
