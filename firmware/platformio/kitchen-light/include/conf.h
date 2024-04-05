@@ -5,7 +5,7 @@
  *
  * 1) Soft AP SSID is always Kitchen light #1234 and Soft AP PWD is always 12345678, instead of being randomly generated on each factory reset.
  */
-#define DEVELOPMENT
+// #define DEVELOPMENT
 
 // general
 #define DELAY_BEFORE_STARTUP_MS 10
