@@ -1430,7 +1430,7 @@ void loop()
                 validWifiConnection, 
                 validWeather, 
                 validDateTime, 
-                true, 
+                false, 
                 (!validDateTime && dateTimeSyncFlag) ? tempHour : timeInfo.tm_hour, 
                 (!validDateTime && dateTimeSyncFlag) ? tempMinute : timeInfo.tm_min, 
                 timeInfo.tm_mday, 
