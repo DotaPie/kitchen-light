@@ -97,7 +97,7 @@ void loadPreferences()
         #ifdef DEVELOPMENT
             preferences.putUInt("rng-id", 1234);
             preferences.putUInt("rng-pwd", 12345678);    
-        #elif
+        #else
             preferences.putUInt("rng-id", random(1000, 10000));
             preferences.putUInt("rng-pwd", random(10000000, 100000000));
         #endif
