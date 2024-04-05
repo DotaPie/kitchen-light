@@ -1242,10 +1242,14 @@ void handleServerClients()
                     CONSOLE_CRLF("ESP32: RESTART")  
                     ESP.restart();   
                 }
-                // for any request print main page (basically index.html)
-                else
+                // for any request except favicon request, send HTML form (basically index.html)
+                else if(strstr(buff, "favicon") == NULL)
                 {
                     client.print(htmlWebPageForm); 
+                }
+                else
+                {
+                    // if favicon request, do nothing       
                 }
 
                 break;
