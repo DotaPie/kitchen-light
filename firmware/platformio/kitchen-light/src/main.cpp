@@ -1309,9 +1309,13 @@ void loop()
     static uint32_t mainScreenTimer = 0;
     static uint32_t weatherTimer = millis();
     static uint32_t rotary_encoder_timer = 0;
+    static uint32_t dateTimeSyncTimer = 0;
+    static bool dateTimeSyncFlag = false;
     static uint16_t dayOfTimeSync = timeInfo.tm_mday;
     static uint32_t softApTimeout = millis();
-    static uint32_t offlineMode = false;
+    static bool offlineMode = false;
+    static uint8_t tempHour = 0;
+    static uint8_t tempMinute = 0;
 
     // handle inputs
     checkRotaryEncoders(&rotary_encoder_timer);
@@ -1346,9 +1350,22 @@ void loop()
 
             updateWifiSignal();
             clearDisplay();
-
-            // TODO: fake validDateTime as true for short period of time (15s tops) after sync command, so we dont have empty datetime on display
-            updateMainScreen(offlineMode, validWifiConnection, validWeather, validDateTime, true, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal);   
+            updateMainScreen(
+                offlineMode, 
+                validWifiConnection, 
+                validWeather, 
+                validDateTime, 
+                true, 
+                (!validDateTime && dateTimeSyncFlag) ? tempHour : timeInfo.tm_hour, 
+                (!validDateTime && dateTimeSyncFlag) ? tempMinute : timeInfo.tm_min, 
+                timeInfo.tm_mday, 
+                timeInfo.tm_mon, 
+                timeInfo.tm_year + YEAR_OFFSET, 
+                temperature_C, 
+                humidity, 
+                windSpeed, 
+                weather, 
+                wifiSignal);   
         }
         else if(state == ScreenState::BRIGHTNESS)
         {
@@ -1408,7 +1425,22 @@ void loop()
         }
 
         updateWifiSignal();
-        updateMainScreen(offlineMode, validWifiConnection, validWeather, validDateTime, false, timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_mday, timeInfo.tm_mon, timeInfo.tm_year + YEAR_OFFSET, temperature_C, humidity, windSpeed, weather, wifiSignal); 
+        updateMainScreen(
+                offlineMode, 
+                validWifiConnection, 
+                validWeather, 
+                validDateTime, 
+                true, 
+                (!validDateTime && dateTimeSyncFlag) ? tempHour : timeInfo.tm_hour, 
+                (!validDateTime && dateTimeSyncFlag) ? tempMinute : timeInfo.tm_min, 
+                timeInfo.tm_mday, 
+                timeInfo.tm_mon, 
+                timeInfo.tm_year + YEAR_OFFSET, 
+                temperature_C, 
+                humidity, 
+                windSpeed, 
+                weather, 
+                wifiSignal); 
     }
 
     // allow clients to connect to soft AP and configure device
@@ -1429,6 +1461,10 @@ void loop()
     if(validWifiConnection && !offlineMode && dayOfTimeSync != timeInfo.tm_mday && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && state == ScreenState::MAIN)
     {
         dayOfTimeSync = timeInfo.tm_mday;
+        dateTimeSyncTimer = millis();
+        dateTimeSyncFlag = true;
+        tempHour = timeInfo.tm_hour;
+        tempMinute = timeInfo.tm_min;
         syncDateTime(false, LOOP_SYNC_DATE_TIME_TIMEOUT_MS); // verification of datetime sync will be chcecked each second, we ignore return here
     }
 
@@ -1437,5 +1473,11 @@ void loop()
     {
         weatherTimer = millis();
         validWeather = updateWeatherTelemetry();
+    }
+
+    // clear datetime sync flag after time passed
+    if(millis() - dateTimeSyncTimer > DATE_TIME_SYNC_TIMEOUT_MS)
+    {
+        dateTimeSyncFlag = false;    
     }
 }

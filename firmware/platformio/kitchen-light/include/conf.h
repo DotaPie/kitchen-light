@@ -65,6 +65,7 @@
 #define WHEN_TO_TIME_SYNC_HOUR 4 // sync time once a day on start of this hour
 #define SETUP_SYNC_DATE_TIME_TIMEOUT_MS 10000
 #define LOOP_SYNC_DATE_TIME_TIMEOUT_MS 10
+#define DATE_TIME_SYNC_TIMEOUT_MS 30000
 
 // weather
 #define CITY_MAX_LENGTH 64
