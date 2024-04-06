@@ -32,7 +32,7 @@
 #define PICKER_OFFSET_Y 80
 #define PICKER_HEIGHT 80
 #define PICKER_WIDTH 288 // number should be divisible by 6, or behaviour might vary
-#define MAIN_SCREEN_TIMER_MS 1000 // do not change !!! used by doubledot animation, wi-fi check, etc.
+#define MAIN_SCREEN_TIMER_MS 1000 // do not change !!! used by doubledot animation, etc.
 #define ANY_SETTING_SCREEN_TIMER_MS 2000
 
 // encoders
