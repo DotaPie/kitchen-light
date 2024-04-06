@@ -32,18 +32,16 @@ uint16_t currentColorTemperatureIndex, previousColorTemperatureIndex;
 uint8_t currentBrightness, previousBrightness;
 uint16_t rng_id;
 uint32_t rng_pwd;  
-
-// user config globals: will be loaded after initial device setup
 char wifi_ssid[WIFI_SSID_MAX_LENGTH + 1] = "";
 char wifi_pwd[WIFI_PWD_MAX_LENGTH + 1] = "";
-char timeZone[TIME_ZONE_MAX_LENGTH + 1] = ""; // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json
+char timeZone[TIME_ZONE_MAX_LENGTH + 1] = "";
 char city[CITY_MAX_LENGTH + 1] = "";
 char countryCode[COUNTRY_CODE_MAX_LENGTH + 1] = "";
 char lat[LAT_LON_MAX_LENGTH + 1] = "";
 char lon[LAT_LON_MAX_LENGTH + 1] = "";
 char openWeatherAPI_key[API_KEY_MAX_LENGTH + 1] = "";
-uint16_t numberOfLeds = 0;
-uint16_t previousNumberOfLeds = 0;
+uint16_t numberOfLeds;
+uint16_t previousNumberOfLeds;
 
 // encoder globals
 RotaryEncoder encoder_1 = RotaryEncoder(RE_1_IN1_PIN, RE_1_IN2_PIN, RotaryEncoder::LatchMode::TWO03);
@@ -128,6 +126,7 @@ void loadPreferences()
     rng_pwd = preferences.getUInt("rng-pwd", 12345678);
 
     numberOfLeds = preferences.getUInt("n-leds", 0);
+    previousNumberOfLeds = numberOfLeds;
 
     sprintf(defaultSoftAP_ssid, "Kitchen light #%d", rng_id);
     sprintf(defaultSoftAP_pwd, "%d", rng_pwd);
@@ -943,173 +942,19 @@ void decodeUrlCodes(char *valBuff, char *valBuffFiltered)
     }           
 }
 
-// TODO: unify to 1 function
-void saveNewParamsToPreferences(char *buff)
+void parseParameter(char *buff, char *param, char *saveToParam, uint16_t paramMaxLength)
 {
     char valBuff[MAX_PREFERENCE_LENGTH + 1] = "";
     char c = '\0';
     uint16_t index = 0;
     char *ptr;
-    
-    // ssid
-    ptr = strstr(buff, "ssid=");
+
+    ptr = strstr(buff, param);
     memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
     index = 0;
     while(index < MAX_PREFERENCE_LENGTH)
     {
-        char c = ptr[index + 5]; // skip "ssid="
-
-        if(c == '&')
-        {
-            strcpy(wifi_ssid, valBuff);
-            break;
-        }
-       
-        valBuff[index] = c;
-        index += 1; 
-
-        if(index > WIFI_SSID_MAX_LENGTH)  
-        {
-            CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
-            break;
-        }     
-    }
-
-    // pwd
-    ptr = strstr(buff, "pwd=");
-    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
-    index = 0;
-    while(index < MAX_PREFERENCE_LENGTH)
-    {
-        char c = ptr[index + 4]; // skip "pwd="
-
-        if(c == '&')
-        {
-            strcpy(wifi_pwd, valBuff);
-            break;
-        }
-       
-        valBuff[index] = c;
-        index += 1; 
-
-        if(index > WIFI_PWD_MAX_LENGTH)  
-        {
-            CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
-            break;
-        }     
-    }
-
-    // city + country code
-    if(strstr(buff, "location=cityAndCountryCode") != NULL)
-    {
-        // city
-        ptr = strstr(buff, "city=");
-        memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
-        index = 0;
-        while(index < MAX_PREFERENCE_LENGTH)
-        {
-            char c = ptr[index + 5]; // skip "city="
-
-            if(c == '&')
-            {
-                strcpy(city, valBuff);
-                break;
-            }
-        
-            valBuff[index] = c;
-            index += 1; 
-
-            if(index > CITY_MAX_LENGTH)  
-            {
-                CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
-                break;
-            }     
-        }
-
-        // country-code
-        ptr = strstr(buff, "country-code=");
-        memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
-        index = 0;
-        while(index < MAX_PREFERENCE_LENGTH)
-        {
-            char c = ptr[index + 13]; // skip "country-code="
-
-            if(c == '&')
-            {
-                strcpy(countryCode, valBuff);
-                break;
-            }
-        
-            valBuff[index] = c;
-            index += 1; 
-
-            if(index > COUNTRY_CODE_MAX_LENGTH)  
-            {
-                CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
-                break;
-            }     
-        }
-    }
-    // lat + lon
-    else if(strstr(buff, "location=latLon") != NULL)
-    {
-        CONSOLE_CRLF("TEST1")
-        // lat
-        ptr = strstr(buff, "lat=");
-        memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
-        index = 0;
-        while(index < MAX_PREFERENCE_LENGTH)
-        {
-            char c = ptr[index + 4]; // skip "lat="
-
-            if(c == '&')
-            {
-                strcpy(lat, valBuff);
-                break;
-            }
-        
-            valBuff[index] = c;
-            index += 1; 
-
-            if(index > LAT_LON_MAX_LENGTH)  
-            {
-                CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
-                break;
-            }     
-        }  
-
-        // lon
-        ptr = strstr(buff, "lon=");
-        memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
-        index = 0;
-        while(index < MAX_PREFERENCE_LENGTH)
-        {
-            char c = ptr[index + 4]; // skip "lon="
-
-            if(c == '&')
-            {
-                strcpy(lon, valBuff);
-                break;
-            }
-        
-            valBuff[index] = c;
-            index += 1; 
-
-            if(index > LAT_LON_MAX_LENGTH)  
-            {
-                CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
-                break;
-            }     
-        }    
-    }
-
-    // time zone
-    ptr = strstr(buff, "timezone=");
-    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
-    index = 0;
-    while(index < MAX_PREFERENCE_LENGTH)
-    {
-        char c = ptr[index + 9]; // skip "timezone="
+        char c = ptr[index + strlen(param) + 1]; // include '=' located after parameter name
 
         if(c == '&')
         {
@@ -1120,48 +965,47 @@ void saveNewParamsToPreferences(char *buff)
         }
        
         valBuff[index] = c;
-        index += 1;   
+        index += 1; 
 
-        if(index > TIME_ZONE_MAX_LENGTH)  
+        if(index > paramMaxLength)  
         {
             CONSOLE_CRLF("PARSING PARAMETER: OVERFLOW")
             break;
-        }    
+        }     
     }
+}
 
-    ptr = strstr(buff, "api-key=");
-    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
-    index = 0;
-    while(index < MAX_PREFERENCE_LENGTH)
+void parseNewParams(char *buff, WeatherLocationType weatherLocationType)
+{
+    parseParameter(buff, "ssid", wifi_ssid, WIFI_SSID_MAX_LENGTH);
+    parseParameter(buff, "pwd", wifi_pwd, WIFI_PWD_MAX_LENGTH);
+
+    if(weatherLocationType == WeatherLocationType::CITY_AND_COUNTRY_CODE)
     {
-        char c = ptr[index + 8]; // skip "api-key="
-
-        // last parameter ends in ' ' instead of &
-        if(c == ' ')
-        {
-            strcpy(openWeatherAPI_key, valBuff);
-            break;
-        }
-       
-        valBuff[index] = c;
-        index += 1;   
-
-        if(index > API_KEY_MAX_LENGTH)  
-        {
-            CONSOLE("PARSING PARAMETER: OVERFLOW")
-            break;
-        }   
+        parseParameter(buff, "city", city, CITY_MAX_LENGTH);
+        parseParameter(buff, "country-code", countryCode, COUNTRY_CODE_MAX_LENGTH);
+    }
+    else if(weatherLocationType == WeatherLocationType::LAT_LON)
+    {
+        parseParameter(buff, "lat", lat, LAT_LON_MAX_LENGTH);
+        parseParameter(buff, "lon", lon, LAT_LON_MAX_LENGTH);   
     }
 
+    parseParameter(buff, "timezone", timeZone, TIME_ZONE_MAX_LENGTH); 
+    parseParameter(buff, "api-key", openWeatherAPI_key, API_KEY_MAX_LENGTH); 
+}
+
+void saveParsedParamsToPreferences(char *buff, WeatherLocationType weatherLocationType)
+{
     preferences.putBytes("wifi_ssid", wifi_ssid, WIFI_SSID_MAX_LENGTH + 1);
     preferences.putBytes("wifi_pwd", wifi_pwd, WIFI_PWD_MAX_LENGTH + 1);
     
-    if(strstr(buff, "location=cityAndCountryCode") != NULL)
+    if(weatherLocationType == WeatherLocationType::CITY_AND_COUNTRY_CODE)
     {
         preferences.putBytes("city", city, CITY_MAX_LENGTH + 1);
         preferences.putBytes("country-c", countryCode, COUNTRY_CODE_MAX_LENGTH + 1);
     }
-    else if(strstr(buff, "location=latLon") != NULL)
+    else if(weatherLocationType == WeatherLocationType::LAT_LON)
     {
         preferences.putBytes("lat", lat, LAT_LON_MAX_LENGTH + 1);
         preferences.putBytes("lon", lon, LAT_LON_MAX_LENGTH + 1);    
@@ -1177,6 +1021,7 @@ void handleServerClients()
     char buff[MAX_HTTP_PAYLOAD_SIZE] = "";
     uint16_t index = 0;
     uint32_t timeout = 0;
+    WeatherLocationType weatherLocationType = WeatherLocationType::NONE;
     
     if(client)
     {
@@ -1221,13 +1066,24 @@ void handleServerClients()
                     CONSOLE_CRLF("  |-- received all required parameters")
 
                     CONSOLE_CRLF("SERVER: SAVING NEW PARAMETERS TO PREFERENCES")
-                    saveNewParamsToPreferences(buff);   
 
                     if(strstr(buff, "location=cityAndCountryCode") != NULL)
                     {
-                        sprintf(buff, htmlWebPageCompleteFormatterCityAndCountryCode, wifi_ssid, wifi_pwd, city, countryCode, timeZone, openWeatherAPI_key);
+                        weatherLocationType = WeatherLocationType::CITY_AND_COUNTRY_CODE;
                     }
                     else if(strstr(buff, "location=latLon") != NULL)
+                    {
+                        weatherLocationType = WeatherLocationType::LAT_LON;
+                    }
+
+                    parseNewParams(buff, weatherLocationType);   
+                    saveParsedParamsToPreferences(buff, weatherLocationType);
+
+                    if(weatherLocationType == WeatherLocationType::CITY_AND_COUNTRY_CODE)
+                    {
+                        sprintf(buff, htmlWebPageCompleteFormatterCityAndCountryCode, wifi_ssid, wifi_pwd, city, countryCode, timeZone, openWeatherAPI_key);
+                    }
+                    else if(weatherLocationType == WeatherLocationType::LAT_LON)
                     {
                         sprintf(buff, htmlWebPageCompleteFormatterLatAndLon, wifi_ssid, wifi_pwd, lat, lon, timeZone, openWeatherAPI_key);
                     }

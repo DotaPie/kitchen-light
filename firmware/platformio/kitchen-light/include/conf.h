@@ -37,7 +37,7 @@
 
 // preferences
 #define DEFAULT_ID 100 // change this to other number if you want to force default configuration after next upload
-#define MAX_PREFERENCE_LENGTH 60
+#define MAX_PREFERENCE_LENGTH 128
 #define FACTORY_RESET_TIMEOUT_MS 5000
 #define INVALID_WIFI_SSID "****"
 #define INVALID_WIFI_PWD "****"
@@ -56,7 +56,7 @@
 #define MAX_SOFTAP_PWD_LENGTH 32
 #define SERVER_CLIENT_TIMEOUT_MS 10000
 
-// time
+// datetime
 #define YEAR_OFFSET 1900
 #define TIME_ZONE_MAX_LENGTH 64 
 #define SETUP_SYNC_DATE_TIME_TIMEOUT_MS 15000

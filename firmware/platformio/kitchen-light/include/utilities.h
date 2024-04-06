@@ -18,6 +18,7 @@ enum class Weather {    NONE,
                         SNOW_DAY, SNOW_NIGHT,
                         MIST_DAY, MIST_NIGHT
                     };
+enum class WeatherLocationType {NONE, CITY_AND_COUNTRY_CODE, LAT_LON};
 
 extern const char* NTP_server_domain;
 extern const char* openWeatherServerUrlformatableCityAndCountryCode;
