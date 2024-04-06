@@ -961,10 +961,9 @@ void parseParameter(char *buff, const char *param, char *saveToParam, uint16_t p
 
         if(c == terminationChar)
         {
-            //char valBuffFiltered[MAX_PREFERENCE_LENGTH + 1] = "";
-            //decodeUrlCodes(valBuffFiltered, valBuff); // for example '/' is encoded into %2F, put it back to '/'
-            //strcpy(saveToParam, valBuffFiltered);
-            strcpy(saveToParam, valBuff);
+            char valBuffFiltered[MAX_PREFERENCE_LENGTH + 1] = "";
+            decodeUrlCodes(valBuffFiltered, valBuff); // for example '/' is encoded into %2F, put it back to '/'
+            strcpy(saveToParam, valBuffFiltered);
             break;
         }
        
