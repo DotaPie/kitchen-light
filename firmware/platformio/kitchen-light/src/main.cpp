@@ -1221,7 +1221,7 @@ void loop()
             updateMainScreen(
                 offlineMode, 
                 validWifiConnection, 
-                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
+                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiConnection) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
                 validDateTime, 
                 true, 
                 hour, 
@@ -1297,7 +1297,7 @@ void loop()
         updateMainScreen(
                 offlineMode, 
                 validWifiConnection, 
-                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
+                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiConnection) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
                 validDateTime, 
                 false, 
                 hour, 
