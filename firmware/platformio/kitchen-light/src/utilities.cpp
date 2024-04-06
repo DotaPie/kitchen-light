@@ -18,7 +18,7 @@ const char* stateString[] = {"NONE", "MAIN", "BRIGHTNESS", "COLOR"};
 const char* CPT_String[] = {"NONE", "COLOR_TEMPERATURE", "COLOR_HUE"};
 const char* wifiSignalString[] = {"NONE", "DISCONNECTED", "BAD", "GOOD", "EXCELLENT"};
 const char* weatherString[] = {"NONE", 
-                                "CLEAR_CLEAR_SKY_DAY", "CLEAR_CLEAR_SKY_NIGHT",
+                                "CLEAR_SKY_DAY", "CLEAR_SKY_NIGHT",
                                 "FEW_CLOUDS_DAY", "FEW_CLOUDS_NIGHT",
                                 "SCATTERED_CLOUDS_DAY", "SCATTERED_CLOUDS_NIGHT",
                                 "BROKEN_CLOUDS_DAY", "BROKEN_CLOUDS_NIGHT",
