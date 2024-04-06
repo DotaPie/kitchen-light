@@ -1339,21 +1339,23 @@ void loop()
                 }
 
                 // update weather
-                if(WiFi.status() == WL_CONNECTED && millis() - weatherTimer > UPDATE_WEATHER_MS)
+                if(millis() - weatherTimer > UPDATE_WEATHER_MS)
                 {
                     weatherTimer = millis();
-                    validWeather = updateWeatherTelemetry();
 
-                    if(validWeather)
+                    if(WiFi.status() == WL_CONNECTED)
                     {
-                        weatherSyncTimer = millis();
+                        validWeather = updateWeatherTelemetry();
+
+                        if(validWeather)
+                        {
+                            weatherSyncTimer = millis();
+                        }
                     }
-                }
-                // do not even attempt to grab telemetry if not connected to wifi
-                else if(millis() - weatherTimer > UPDATE_WEATHER_MS)
-                {
-                    weatherTimer = millis();
-                    validWeather = false;
+                    else
+                    {
+                        validWeather = false;
+                    }
                 }
             }
         }
