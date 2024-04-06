@@ -628,86 +628,89 @@ void drawRGB565_filtered(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const u
     display.endWrite();  
 }
 
-void updateWeather(Weather weather)
+void updateWeather(Weather weather, bool invalid = false)
 {
     display.fillRect(display.width() * 3/4 + 1, display.height() - 39, display.width() - 1, 39, RGB888_TO_RGB565(0, 0, 0)); 
 
-    switch(weather)
+    if(!invalid)
     {
-        case Weather::CLEAR_SKY_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01d, RGB888_TO_RGB565(0, 0, 0));
-            break;
+        switch(weather)
+        {
+            case Weather::CLEAR_SKY_DAY:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01d, RGB888_TO_RGB565(0, 0, 0));
+                break;
 
-        case Weather::CLEAR_SKY_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01n, RGB888_TO_RGB565(0, 0, 0));
-            break;
-        
-        case Weather::FEW_CLOUDS_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02d, RGB888_TO_RGB565(0, 0, 0));
-            break;
-
-        case Weather::FEW_CLOUDS_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02n, RGB888_TO_RGB565(0, 0, 0));
-            break;
+            case Weather::CLEAR_SKY_NIGHT:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01n, RGB888_TO_RGB565(0, 0, 0));
+                break;
             
-        case Weather::SCATTERED_CLOUDS_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03d, RGB888_TO_RGB565(0, 0, 0));
-            break;
+            case Weather::FEW_CLOUDS_DAY:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02d, RGB888_TO_RGB565(0, 0, 0));
+                break;
 
-        case Weather::SCATTERED_CLOUDS_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03n, RGB888_TO_RGB565(0, 0, 0));
-            break;
-            
-        case Weather::BROKEN_CLOUDS_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04d, RGB888_TO_RGB565(0, 0, 0));
-            break;
+            case Weather::FEW_CLOUDS_NIGHT:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02n, RGB888_TO_RGB565(0, 0, 0));
+                break;
+                
+            case Weather::SCATTERED_CLOUDS_DAY:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03d, RGB888_TO_RGB565(0, 0, 0));
+                break;
 
-        case Weather::BROKEN_CLOUDS_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04n, RGB888_TO_RGB565(0, 0, 0));
-            break;
-            
-        case Weather::SHOWER_RAIN_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09d, RGB888_TO_RGB565(0, 0, 0));
-            break;
+            case Weather::SCATTERED_CLOUDS_NIGHT:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03n, RGB888_TO_RGB565(0, 0, 0));
+                break;
+                
+            case Weather::BROKEN_CLOUDS_DAY:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04d, RGB888_TO_RGB565(0, 0, 0));
+                break;
 
-        case Weather::SHOWER_RAIN_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09n, RGB888_TO_RGB565(0, 0, 0));
-            break;
-            
-        case Weather::RAIN_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10d, RGB888_TO_RGB565(0, 0, 0));
-            break;
+            case Weather::BROKEN_CLOUDS_NIGHT:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04n, RGB888_TO_RGB565(0, 0, 0));
+                break;
+                
+            case Weather::SHOWER_RAIN_DAY:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09d, RGB888_TO_RGB565(0, 0, 0));
+                break;
 
-        case Weather::RAIN_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10n, RGB888_TO_RGB565(0, 0, 0));
-            break;
-            
-        case Weather::THUNDERSTORM_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11d, RGB888_TO_RGB565(0, 0, 0));
-            break;
+            case Weather::SHOWER_RAIN_NIGHT:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09n, RGB888_TO_RGB565(0, 0, 0));
+                break;
+                
+            case Weather::RAIN_DAY:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10d, RGB888_TO_RGB565(0, 0, 0));
+                break;
 
-        case Weather::THUNDERSTORM_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11n, RGB888_TO_RGB565(0, 0, 0));
-            break;
-            
-        case Weather::SNOW_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13d, RGB888_TO_RGB565(0, 0, 0));
-            break;
+            case Weather::RAIN_NIGHT:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10n, RGB888_TO_RGB565(0, 0, 0));
+                break;
+                
+            case Weather::THUNDERSTORM_DAY:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11d, RGB888_TO_RGB565(0, 0, 0));
+                break;
 
-        case Weather::SNOW_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13n, RGB888_TO_RGB565(0, 0, 0));
-            break;
-            
-        case Weather::MIST_DAY:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50d, RGB888_TO_RGB565(0, 0, 0));
-            break;
+            case Weather::THUNDERSTORM_NIGHT:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11n, RGB888_TO_RGB565(0, 0, 0));
+                break;
+                
+            case Weather::SNOW_DAY:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13d, RGB888_TO_RGB565(0, 0, 0));
+                break;
 
-        case Weather::MIST_NIGHT:
-            drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50n, RGB888_TO_RGB565(0, 0, 0));
-            break;
+            case Weather::SNOW_NIGHT:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13n, RGB888_TO_RGB565(0, 0, 0));
+                break;
+                
+            case Weather::MIST_DAY:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50d, RGB888_TO_RGB565(0, 0, 0));
+                break;
 
-        default:
-            break;
+            case Weather::MIST_NIGHT:
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50n, RGB888_TO_RGB565(0, 0, 0));
+                break;
+
+            default:
+                break;
+        }
     }
 }
 
@@ -941,8 +944,8 @@ void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeat
     }
     else if((previousValidWeather || forceAll) && !validWeather)
     {
-        updateWindSpeed(windSpeed, true); 
-        CONSOLE_CRLF("  |-- WIND SPEED UPDATED (INVALID)")      
+        updateWeather(weather, true);
+        CONSOLE_CRLF("  |-- WEATHER UPDATED (INVALID)")      
     }
 
     if((day != prevDay || month != prevMonth || year != prevYear || forceAll) && validDateTime)
