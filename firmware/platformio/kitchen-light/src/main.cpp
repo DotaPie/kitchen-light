@@ -3,6 +3,7 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include "esp_sntp.h"
 
 // project includes
 #include "console.h"
@@ -59,11 +60,12 @@ float windSpeed = -1.0;
 WifiSignal wifiSignal = WifiSignal::DISCONNECTED;
 Weather weather = Weather::NONE;
 bool validWeather = false;
+uint32_t weatherSyncTimer = 0; // value does not matter
 
 // time sync globals
 bool validDateTime = false;
 struct tm timeInfo;
-bool timezoneSet = false;
+volatile uint32_t dateTimeSyncTimer = 0;
 
 // other globals
 WiFiServer server(WIFI_SERVER_PORT); 
@@ -196,11 +198,11 @@ void updateNumberOfLeds(long direction, bool valueLocked)
 
     if(tempNumberOfLeds < 0)
     {
-        currentBrightness = 0;
+        tempNumberOfLeds = 0;
     }
     else if(tempNumberOfLeds > LED_STRIP_MAX_LED_COUNT)
     {
-        currentBrightness = LED_STRIP_MAX_LED_COUNT;
+        tempNumberOfLeds = LED_STRIP_MAX_LED_COUNT;
     }
     else 
     {
@@ -719,7 +721,6 @@ bool syncDateTime(bool waitForSync, uint32_t syncTimeoutMs)
     CONSOLE("SYNCING LOCAL TIME: ")
 
     configTime(0, 0, NTP_server_domain); // sync datetime, not setting gmt or daylight saving offset here
-    timezoneSet = false;
 
     if(!waitForSync)
     {
@@ -743,8 +744,6 @@ void setTimezone()
     CONSOLE_CRLF("OK")
     CONSOLE("  |-- timezone: ")
     CONSOLE_CRLF(timeZone)
-
-    timezoneSet = true;
 }
 
 void httpGETRequest(char* serverName, char *payload) {
@@ -1268,9 +1267,22 @@ void resetDatetime()
     settimeofday(&tv, NULL);
 }
 
+/* Default sync period is 1h. 
+ * This can be changed by including "esp_sntp.h" and calling sntp_set_sync_interval(ms)
+ * cbSyncTime() is callback to sync.
+ * We use this callback to cover case when sync could possibly take couple of seconds, by displaying previous values.
+ */
+void callbackSyncTime(struct timeval *tv)
+{
+    dateTimeSyncTimer = millis();
+}
+
 void setup()
 {
     delay(DELAY_BEFORE_STARTUP_MS);
+
+    sntp_set_time_sync_notification_cb(callbackSyncTime);
+
     CONSOLE_SERIAL.begin(CONSOLE_BAUDRATE);
     CONSOLE_CRLF("~~~ SETUP ~~~")
 
@@ -1293,6 +1305,11 @@ void setup()
         {
             validWeather = updateWeatherTelemetry();   
         }
+
+        if(validWeather)
+        {
+            weatherSyncTimer = millis();
+        }
     }
     else
     {
@@ -1306,16 +1323,13 @@ void setup()
 
 void loop() 
 {
-    static uint32_t mainScreenTimer = 0;
-    static uint32_t weatherTimer = millis();
-    static uint32_t rotary_encoder_timer = 0;
-    static uint32_t dateTimeSyncTimer = 0;
-    static bool dateTimeSyncFlag = false;
-    static uint16_t dayOfTimeSync = timeInfo.tm_mday;
-    static uint32_t softApTimeout = millis();
+    static uint32_t mainScreenTimer = 0; // force screen refresh immediately after enetering loop
+    static uint32_t weatherTimer = millis(); // start counting timer to weather sync after entering loop
+    static uint32_t rotary_encoder_timer = 0; // value does not matter
+    static uint32_t softApTimeout = millis(); // start counting timer to soft AP timeout after entering loop
     static bool offlineMode = false;
-    static uint8_t tempHour = 0;
-    static uint8_t tempMinute = 0;
+    static uint8_t prevHour = 0; // value does not matter
+    static uint8_t prevMinute = 0; // value does not matter
 
     // handle inputs
     checkRotaryEncoders(&rotary_encoder_timer);
@@ -1340,24 +1354,22 @@ void loop()
             updateColorAndBrightnessPreferences();
 
             mainScreenTimer = millis();
-
             validDateTime = getLocalTime(&timeInfo, LOOP_SYNC_DATE_TIME_TIMEOUT_MS);
-
-            if(validDateTime && !timezoneSet)
-            {
-                setTimezone();
-            }
 
             updateWifiSignal();
             clearDisplay();
+            
+            uint8_t hour = (!validDateTime && millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS) ? prevHour : (uint8_t)timeInfo.tm_hour;
+            uint8_t minute = (!validDateTime && millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS) ? prevMinute : (uint8_t)timeInfo.tm_min;
+
             updateMainScreen(
                 offlineMode, 
                 validWifiConnection, 
-                validWeather, 
+                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
                 validDateTime, 
                 true, 
-                (!validDateTime && dateTimeSyncFlag) ? tempHour : timeInfo.tm_hour, 
-                (!validDateTime && dateTimeSyncFlag) ? tempMinute : timeInfo.tm_min, 
+                hour, 
+                minute, 
                 timeInfo.tm_mday, 
                 timeInfo.tm_mon, 
                 timeInfo.tm_year + YEAR_OFFSET, 
@@ -1365,7 +1377,10 @@ void loop()
                 humidity, 
                 windSpeed, 
                 weather, 
-                wifiSignal);   
+                wifiSignal);  
+
+            prevHour = hour;
+            prevMinute = minute;
         }
         else if(state == ScreenState::BRIGHTNESS)
         {
@@ -1416,23 +1431,21 @@ void loop()
     if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == ScreenState::MAIN)
     {
         mainScreenTimer = millis();
-
         validDateTime = getLocalTime(&timeInfo, LOOP_SYNC_DATE_TIME_TIMEOUT_MS);
 
-        if(validDateTime && !timezoneSet)
-        {
-            setTimezone();
-        }
-
         updateWifiSignal();
+
+        uint8_t hour = (!validDateTime && millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS) ? prevHour : (uint8_t)timeInfo.tm_hour;
+        uint8_t minute = (!validDateTime && millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS) ? prevMinute : (uint8_t)timeInfo.tm_min;
+
         updateMainScreen(
                 offlineMode, 
                 validWifiConnection, 
-                validWeather, 
+                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
                 validDateTime, 
                 false, 
-                (!validDateTime && dateTimeSyncFlag) ? tempHour : timeInfo.tm_hour, 
-                (!validDateTime && dateTimeSyncFlag) ? tempMinute : timeInfo.tm_min, 
+                hour, 
+                minute, 
                 timeInfo.tm_mday, 
                 timeInfo.tm_mon, 
                 timeInfo.tm_year + YEAR_OFFSET, 
@@ -1441,6 +1454,9 @@ void loop()
                 windSpeed, 
                 weather, 
                 wifiSignal); 
+        
+        prevHour = hour;
+        prevMinute = minute;
     }
 
     // allow clients to connect to soft AP and configure device
@@ -1457,27 +1473,15 @@ void loop()
         }
     }
 
-    // sync datetime
-    if(validWifiConnection && !offlineMode && dayOfTimeSync != timeInfo.tm_mday && timeInfo.tm_hour == WHEN_TO_TIME_SYNC_HOUR && state == ScreenState::MAIN)
-    {
-        dayOfTimeSync = timeInfo.tm_mday;
-        dateTimeSyncTimer = millis();
-        dateTimeSyncFlag = true;
-        tempHour = timeInfo.tm_hour;
-        tempMinute = timeInfo.tm_min;
-        syncDateTime(false, LOOP_SYNC_DATE_TIME_TIMEOUT_MS); // verification of datetime sync will be chcecked each second, we ignore return here
-    }
-
     // update weather
     if(validWifiConnection && !offlineMode && millis() - weatherTimer > UPDATE_WEATHER_MS && state == ScreenState::MAIN)
     {
         weatherTimer = millis();
         validWeather = updateWeatherTelemetry();
-    }
 
-    // clear datetime sync flag after time passed
-    if(millis() - dateTimeSyncTimer > DATE_TIME_SYNC_TIMEOUT_MS)
-    {
-        dateTimeSyncFlag = false;    
+        if(validWeather)
+        {
+            weatherSyncTimer = millis();
+        }
     }
 }
