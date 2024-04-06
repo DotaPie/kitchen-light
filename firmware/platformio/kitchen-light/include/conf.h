@@ -4,8 +4,9 @@
 /* What is affected by development macro?
  *
  * 1) Soft AP SSID is always Kitchen light #1234 and Soft AP PWD is always 12345678, instead of being randomly generated on each factory reset.
+ * 2) Default LED brightness is 16 instead 255 (full).
  */
-// #define DEVELOPMENT
+//#define DEVELOPMENT
 
 // general
 #define DELAY_BEFORE_STARTUP_MS 10
@@ -14,7 +15,13 @@
 #define LED_STRIP_MAX_LED_COUNT 9999
 #define LED_STRIP_TYPE WS2812B
 #define COLOR_ORDER GRB
+
+// dont burn eyes out when developing
+#ifdef DEVELOPMENT
 #define DEFAULT_BRIGHTNESS 16
+#else
+#define DEFAULT_BRIGHTNESS 255
+#endif
 #define COLOR_BLENDING LINEARBLEND
 
 // display
@@ -36,7 +43,7 @@
 #define COLOR_TEMPERATURE_INDEX_STEP 4 // 8 color picker change for 1 encoder step
 
 // preferences
-#define DEFAULT_ID 100 // change this to other number if you want to force default configuration after next upload
+#define DEFAULT_PREFERENCES_ID 107 // change this to other number if you want to force default configuration after next upload
 #define MAX_PREFERENCE_LENGTH 128
 #define FACTORY_RESET_TIMEOUT_MS 5000
 #define INVALID_WIFI_SSID "****"
@@ -50,18 +57,19 @@
 // wifi
 #define WIFI_SSID_MAX_LENGTH 128
 #define WIFI_PWD_MAX_LENGTH 128
-#define WIFI_CONNECT_TIMEOUT_MS 12000
+#define WIFI_CONNECT_TIMEOUT_MS 20000
 #define WIFI_SERVER_PORT 80
 #define MAX_SOFTAP_SSID_LENGTH 64
 #define MAX_SOFTAP_PWD_LENGTH 32
 #define SERVER_CLIENT_TIMEOUT_MS 10000
+#define WIFI_CONNECTION_CHECK_TIMER_MS 1000
 
 // datetime
 #define YEAR_OFFSET 1900
 #define TIME_ZONE_MAX_LENGTH 64 
 #define SETUP_SYNC_DATE_TIME_TIMEOUT_MS 15000
 #define LOOP_SYNC_DATE_TIME_TIMEOUT_MS 10
-#define DATE_TIME_SYNC_TIMEOUT_MS 15000
+#define DATE_TIME_SYNC_TIMEOUT_MS 604800000 // 1 week
 
 // weather
 #define CITY_MAX_LENGTH 64

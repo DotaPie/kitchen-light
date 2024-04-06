@@ -814,7 +814,7 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
     clearDisplay();
 
     // force factory reset by modifying first run value
-    uint32_t tempVal = preferences->getUInt("firstRun", DEFAULT_ID);
+    uint32_t tempVal = preferences->getUInt("firstRun", DEFAULT_PREFERENCES_ID);
     tempVal += 1;
     preferences->putUInt("firstRun", tempVal);
 
@@ -822,7 +822,7 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
     ESP.restart();
 }
 
-void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, Weather weather, WifiSignal wifiSignal)
+void updateMainScreen(bool offlineMode, bool validWifiSetup, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, Weather weather, WifiSignal wifiSignal)
 {
     // track previous values
     static uint8_t prevHour = 255; 
@@ -838,7 +838,7 @@ void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeat
 
     static bool doubledotVisible = false;
 
-    static bool previousValidWifiConnection = !validWifiConnection;
+    static bool previousValidWifiConnection = !validWifiSetup;
     static bool previousValidWeather = !validWeather;
     static bool previousValidDateTime = !validDateTime;
     static bool previousOfflineMode = !offlineMode;
@@ -850,7 +850,7 @@ void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeat
         drawFixedParts();
     }
 
-    if((previousValidWifiConnection || forceAll) && !validWifiConnection && !offlineMode)
+    if((previousValidWifiConnection || forceAll) && !validWifiSetup && !offlineMode)
     {
         drawSetupText();
     }
@@ -861,7 +861,7 @@ void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeat
     }
 
     // update on each updateMainScreen() which happens once a second
-    if(validWifiConnection && validDateTime)
+    if(validWifiSetup && validDateTime)
     {
         updateDoubledot(!doubledotVisible);  
         doubledotVisible = !doubledotVisible;
@@ -962,9 +962,9 @@ void updateMainScreen(bool offlineMode, bool validWifiConnection, bool validWeat
         CONSOLE_CRLF("  |-- DATE UPDATED (INVALID)")      
     }
 
-    if(previousValidWifiConnection != validWifiConnection)
+    if(previousValidWifiConnection != validWifiSetup)
     {
-        previousValidWifiConnection = validWifiConnection;  
+        previousValidWifiConnection = validWifiSetup;  
     }
 
     if(previousValidDateTime != validDateTime)

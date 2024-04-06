@@ -22,8 +22,11 @@
 // core globals
 ScreenState state = ScreenState::MAIN; 
 ScreenState previousState = ScreenState::NONE;
-bool validWifiConnection = false; // true if connected to wi-fi, internet connection does not matter here
+bool validWifiSetup = false; // true if connected to wi-fi, internet connection does not matter here
 Preferences preferences;
+
+// TODO: all this and other stuff to structs
+// TODO: move shit away from main.cpp, ideally keep only setup() and loop()
 
 // preferences globals: will be loaded in setup -> loadPreferences();
 ColorPickerType current_CPT, previous_CPT;
@@ -77,11 +80,11 @@ void loadPreferences()
     preferences.begin("app", false);
 
     // write default config
-    if(preferences.getUInt("firstRun", 0) != DEFAULT_ID)
+    if(preferences.getUInt("firstRun", 0) != DEFAULT_PREFERENCES_ID)
     {
         randomSeed(analogRead(UNCONNECTED_ANALOG_PIN));
         firstTimeRun = true;
-        preferences.putUInt("firstRun", DEFAULT_ID);
+        preferences.putUInt("firstRun", DEFAULT_PREFERENCES_ID);
         preferences.putUChar("CPT", (uint8_t)ColorPickerType::COLOR_TEMPERATURE);
         preferences.putUInt("color-hue", 0);
         preferences.putUInt("color-t", 0);
@@ -637,10 +640,11 @@ void updateColorAndBrightnessPreferences()
 void updateWifiSignal()
 {
     int8_t rssi = WiFi.RSSI();
+    wl_status_t wifiStatus = WiFi.status();
 
     CONSOLE("UPDATING WIFI SIGNAL: ")
 
-    if(!validWifiConnection)
+    if(wifiStatus == WL_DISCONNECTED || !validWifiSetup)
     {
         wifiSignal = WifiSignal::DISCONNECTED;    
     }
@@ -652,14 +656,16 @@ void updateWifiSignal()
     {
         wifiSignal = WifiSignal::GOOD;    
     }
-    else if(rssi >= -55)
+    else if(rssi >= -55 && rssi != 0)
     {
         wifiSignal = WifiSignal::EXCELLENT;
     } 
 
     CONSOLE_CRLF("OK")
+
     CONSOLE("  |-- RSSI: ")
     CONSOLE_CRLF(rssi)
+
     CONSOLE("  |-- Wi-Fi signal: ")
     CONSOLE_CRLF(wifiSignalString[(uint8_t)wifiSignal])
 }
@@ -671,7 +677,7 @@ bool setupWifi()
 
     if(strcmp(wifi_ssid, INVALID_WIFI_SSID) == 0 && strcmp(wifi_pwd, INVALID_WIFI_PWD) == 0)
     {
-        CONSOLE("Wi-Fi status: ")
+        CONSOLE("WIFI STATUS: ")
         CONSOLE_CRLF("CREDENTIALS NOT SET")
 
         return false;    
@@ -683,7 +689,7 @@ bool setupWifi()
     {
         if(millis() > WIFI_CONNECT_TIMEOUT_MS)
         {
-            CONSOLE("Wi-Fi status: ")
+            CONSOLE("WIFI STATUS: ")
             CONSOLE_CRLF("ERROR")
 
             WiFi.disconnect();
@@ -691,8 +697,8 @@ bool setupWifi()
             wifiSignal = WifiSignal::DISCONNECTED;
             return false;
         }
-        
-        CONSOLE("Wi-Fi status: ")
+
+        CONSOLE("WIFI STATUS: ")
         CONSOLE_CRLF("CONNECTING")
 
         delay(1000);
@@ -700,14 +706,14 @@ bool setupWifi()
 
     rssi = WiFi.RSSI();
 
-    CONSOLE("Wi-Fi status: ")
+    CONSOLE("WIFI STATUS: ")
     CONSOLE_CRLF("OK")
     CONSOLE("  |-- AP name: ")
     CONSOLE_CRLF(WiFi.SSID())
     CONSOLE("  |-- IP: ")
     CONSOLE_CRLF(WiFi.localIP())
 
-    validWifiConnection = true;
+    validWifiSetup = true;
     updateWifiSignal();
 
     return true;
@@ -915,7 +921,7 @@ void enableAP()
     CONSOLE_CRLF(defaultSoftAP_pwd)
 }
 
-void decodeUrlCodes(char *valBuff, char *valBuffFiltered)
+void decodeUrlCodes(char *valBuffFiltered, char *valBuff)
 {
     uint16_t index = 0;
     char buff[3] = "";
@@ -942,30 +948,27 @@ void decodeUrlCodes(char *valBuff, char *valBuffFiltered)
     }           
 }
 
-void parseParameter(char *buff, const char *param, char *saveToParam, uint16_t paramMaxLength)
+void parseParameter(char *buff, const char *param, char *saveToParam, uint16_t paramMaxLength, char terminationChar)
 {
     char valBuff[MAX_PREFERENCE_LENGTH + 1] = "";
     char c = '\0';
     uint16_t index = 0;
-    char *ptr;
+    char *ptr = strstr(buff, param);
 
-    ptr = strstr(buff, param);
-    memset(valBuff, '\0', MAX_PREFERENCE_LENGTH + 1);
-    index = 0;
     while(index < MAX_PREFERENCE_LENGTH)
     {
-        char c = ptr[(strlen(param) + 1) + index]; // include '=' located after parameter name
+        char c = ptr[index + (strlen(param))]; // '=' already in param 
 
-        if(c == '&')
+        if(c == terminationChar)
         {
-            char valBuffFiltered[MAX_PREFERENCE_LENGTH + 1] = "";
-            decodeUrlCodes(valBuff, valBuffFiltered); // for example '/' is encoded into %2F, put it back to '/'
-            strcpy(timeZone, valBuffFiltered);
+            //char valBuffFiltered[MAX_PREFERENCE_LENGTH + 1] = "";
+            //decodeUrlCodes(valBuffFiltered, valBuff); // for example '/' is encoded into %2F, put it back to '/'
+            //strcpy(saveToParam, valBuffFiltered);
+            strcpy(saveToParam, valBuff);
             break;
         }
        
-        valBuff[index] = c;
-        index += 1; 
+        valBuff[index++] = c;
 
         if(index > paramMaxLength)  
         {
@@ -977,22 +980,24 @@ void parseParameter(char *buff, const char *param, char *saveToParam, uint16_t p
 
 void parseNewParams(char *buff, WeatherLocationType weatherLocationType)
 {
-    parseParameter(buff, "ssid", wifi_ssid, WIFI_SSID_MAX_LENGTH);
-    parseParameter(buff, "pwd", wifi_pwd, WIFI_PWD_MAX_LENGTH);
+    // including '=' to param search, so we do not mistake for example "city=" for "city" in "cityAndCountryCode"
+
+    parseParameter(buff, "ssid=", wifi_ssid, WIFI_SSID_MAX_LENGTH, '&');
+    parseParameter(buff, "pwd=", wifi_pwd, WIFI_PWD_MAX_LENGTH, '&');
 
     if(weatherLocationType == WeatherLocationType::CITY_AND_COUNTRY_CODE)
     {
-        parseParameter(buff, "city", city, CITY_MAX_LENGTH);
-        parseParameter(buff, "country-code", countryCode, COUNTRY_CODE_MAX_LENGTH);
+        parseParameter(buff, "city=", city, CITY_MAX_LENGTH, '&');
+        parseParameter(buff, "country-code=", countryCode, COUNTRY_CODE_MAX_LENGTH, '&');
     }
     else if(weatherLocationType == WeatherLocationType::LAT_LON)
     {
-        parseParameter(buff, "lat", lat, LAT_LON_MAX_LENGTH);
-        parseParameter(buff, "lon", lon, LAT_LON_MAX_LENGTH);   
+        parseParameter(buff, "lat=", lat, LAT_LON_MAX_LENGTH, '&');
+        parseParameter(buff, "lon=", lon, LAT_LON_MAX_LENGTH, '&');   
     }
 
-    parseParameter(buff, "timezone", timeZone, TIME_ZONE_MAX_LENGTH); 
-    parseParameter(buff, "api-key", openWeatherAPI_key, API_KEY_MAX_LENGTH); 
+    parseParameter(buff, "timezone=", timeZone, TIME_ZONE_MAX_LENGTH, '&'); 
+    parseParameter(buff, "api-key=", openWeatherAPI_key, API_KEY_MAX_LENGTH, ' '); // last parameter in form terminates in space in HTTP header
 }
 
 void saveParsedParamsToPreferences(char *buff, WeatherLocationType weatherLocationType)
@@ -1149,7 +1154,6 @@ void setup()
     setup_LED_strip();
     showPleaseWaitOnDisplay();
 
-    // we could do this before loading animation of LED strip, but on single core CPUs this could cause issues
     if(setupWifi())
     {
         validDateTime = syncDateTime(true, SETUP_SYNC_DATE_TIME_TIMEOUT_MS);
@@ -1180,12 +1184,12 @@ void setup()
 void loop() 
 {
     static uint32_t mainScreenTimer = 0; // force screen refresh immediately after enetering loop
+    static uint32_t wifiConnectionCheckTimer = 0; // force wifi check immediately after enetering loop
+    static uint32_t wifiConnectionCheckTimeoutSuccess = 0; // value does not matter
     static uint32_t weatherTimer = millis(); // start counting timer to weather sync after entering loop
     static uint32_t rotary_encoder_timer = 0; // value does not matter
     static uint32_t softApTimeout = millis(); // start counting timer to soft AP timeout after entering loop
     static bool offlineMode = false;
-    static uint8_t prevHour = 0; // value does not matter
-    static uint8_t prevMinute = 0; // value does not matter
 
     // handle inputs
     checkRotaryEncoders(&rotary_encoder_timer);
@@ -1201,7 +1205,7 @@ void loop()
     {
         previousState = state;
 
-        CONSOLE("ScreenState CHANGE: ");
+        CONSOLE("SCREENSTATE CHANGE: ");
         CONSOLE_CRLF(stateString[(uint8_t)state])
 
         if(state == ScreenState::MAIN)
@@ -1212,20 +1216,19 @@ void loop()
             mainScreenTimer = millis();
             validDateTime = getLocalTime(&timeInfo, LOOP_SYNC_DATE_TIME_TIMEOUT_MS);
 
-            updateWifiSignal();
+            /* TODO: not sure if "sntp_set_time_sync_notification_cb()" is called only on success or even on fail, needs verification
+             *
+             * Idea is to override validDateTime from getLocalTime() return after long period of time.
+             */
             clearDisplay();
-            
-            uint8_t hour = (!validDateTime && millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS) ? prevHour : (uint8_t)timeInfo.tm_hour;
-            uint8_t minute = (!validDateTime && millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS) ? prevMinute : (uint8_t)timeInfo.tm_min;
-
             updateMainScreen(
                 offlineMode, 
-                validWifiConnection, 
-                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiConnection) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
-                validDateTime, 
+                validWifiSetup, 
+                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
+                (millis() - dateTimeSyncTimer > DATE_TIME_SYNC_TIMEOUT_MS) ? false : validDateTime, 
                 true, 
-                hour, 
-                minute, 
+                timeInfo.tm_hour, 
+                timeInfo.tm_min, 
                 timeInfo.tm_mday, 
                 timeInfo.tm_mon, 
                 timeInfo.tm_year + YEAR_OFFSET, 
@@ -1234,9 +1237,6 @@ void loop()
                 windSpeed, 
                 weather, 
                 wifiSignal);  
-
-            prevHour = hour;
-            prevMinute = minute;
         }
         else if(state == ScreenState::BRIGHTNESS)
         {
@@ -1245,7 +1245,7 @@ void loop()
         }
         else if(state == ScreenState::COLOR)
         {
-            CONSOLE("  |-- color picker type: ")
+            CONSOLE("  |-- CPT: ")
             CONSOLE_CRLF(CPT_String[(uint8_t)current_CPT]);
 
             clearDisplay();
@@ -1283,61 +1283,73 @@ void loop()
         }                
     }
 
-    // once a second update local datetime, wifi signal and main screen (if anything needs update)
-    if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS && state == ScreenState::MAIN)
+    if(!offlineMode)
     {
-        mainScreenTimer = millis();
-        validDateTime = getLocalTime(&timeInfo, LOOP_SYNC_DATE_TIME_TIMEOUT_MS);
-
-        updateWifiSignal();
-
-        uint8_t hour = (!validDateTime && millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS) ? prevHour : (uint8_t)timeInfo.tm_hour;
-        uint8_t minute = (!validDateTime && millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS) ? prevMinute : (uint8_t)timeInfo.tm_min;
-
-        updateMainScreen(
-                offlineMode, 
-                validWifiConnection, 
-                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiConnection) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
-                validDateTime, 
-                false, 
-                hour, 
-                minute, 
-                timeInfo.tm_mday, 
-                timeInfo.tm_mon, 
-                timeInfo.tm_year + YEAR_OFFSET, 
-                temperature_C, 
-                humidity, 
-                windSpeed, 
-                weather, 
-                wifiSignal); 
-        
-        prevHour = hour;
-        prevMinute = minute;
-    }
-
-    // allow clients to connect to soft AP and configure device
-    if(!validWifiConnection && !offlineMode)
-    {
-        handleServerClients();
- 
-        if(millis() - softApTimeout > SOFT_AP_TIMEOUT_MS)
+        // allow clients to connect to soft AP and configure device
+        if(!validWifiSetup)
         {
-            offlineMode = true;
+            handleServerClients();
+    
+            if(millis() - softApTimeout > SOFT_AP_TIMEOUT_MS)
+            {
+                offlineMode = true;
 
-            WiFi.disconnect();
-            WiFi.mode(WIFI_OFF);
+                WiFi.disconnect();
+                WiFi.mode(WIFI_OFF);
+            }
         }
-    }
-
-    // update weather
-    if(validWifiConnection && !offlineMode && millis() - weatherTimer > UPDATE_WEATHER_MS && state == ScreenState::MAIN)
-    {
-        weatherTimer = millis();
-        validWeather = updateWeatherTelemetry();
-
-        if(validWeather)
+        else if(validWifiSetup)
         {
-            weatherSyncTimer = millis();
+            // check wifi connection
+            if(millis() - wifiConnectionCheckTimer > WIFI_CONNECTION_CHECK_TIMER_MS)
+            {
+                wifiConnectionCheckTimer = millis();
+
+                updateWifiSignal();
+            }
+
+            if(state == ScreenState::MAIN)
+            {
+                // once a second update local datetime and main screen (if anything needs update)
+                if(millis() - mainScreenTimer > MAIN_SCREEN_TIMER_MS)
+                {
+                    mainScreenTimer = millis();
+                    validDateTime = getLocalTime(&timeInfo, LOOP_SYNC_DATE_TIME_TIMEOUT_MS);
+
+                    /* TODO: not sure if "sntp_set_time_sync_notification_cb()" is called only on success, needs verification
+                     *
+                     * Idea is to override validDateTime from getLocalTime() return after long period of time.
+                     */
+                    updateMainScreen(
+                            offlineMode, 
+                            validWifiSetup, 
+                            validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
+                            (millis() - dateTimeSyncTimer > DATE_TIME_SYNC_TIMEOUT_MS) ? false : validDateTime, 
+                            false, 
+                            timeInfo.tm_hour, 
+                            timeInfo.tm_min, 
+                            timeInfo.tm_mday, 
+                            timeInfo.tm_mon, 
+                            timeInfo.tm_year + YEAR_OFFSET, 
+                            temperature_C, 
+                            humidity, 
+                            windSpeed, 
+                            weather, 
+                            wifiSignal); 
+                }
+
+                // update weather
+                if(WiFi.status() == WL_CONNECTED && millis() - weatherTimer > UPDATE_WEATHER_MS)
+                {
+                    weatherTimer = millis();
+                    validWeather = updateWeatherTelemetry();
+
+                    if(validWeather)
+                    {
+                        weatherSyncTimer = millis();
+                    }
+                }
+            }
         }
     }
 }
