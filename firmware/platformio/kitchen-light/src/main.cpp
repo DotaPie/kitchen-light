@@ -1349,6 +1349,12 @@ void loop()
                         weatherSyncTimer = millis();
                     }
                 }
+                // do not even attempt to grab telemetry if not connected to wifi
+                else if(millis() - weatherTimer > UPDATE_WEATHER_MS)
+                {
+                    weatherTimer = millis();
+                    validWeather = false;
+                }
             }
         }
     }
