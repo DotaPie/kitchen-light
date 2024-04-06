@@ -942,7 +942,7 @@ void decodeUrlCodes(char *valBuff, char *valBuffFiltered)
     }           
 }
 
-void parseParameter(char *buff, char *param, char *saveToParam, uint16_t paramMaxLength)
+void parseParameter(char *buff, const char *param, char *saveToParam, uint16_t paramMaxLength)
 {
     char valBuff[MAX_PREFERENCE_LENGTH + 1] = "";
     char c = '\0';
@@ -954,7 +954,7 @@ void parseParameter(char *buff, char *param, char *saveToParam, uint16_t paramMa
     index = 0;
     while(index < MAX_PREFERENCE_LENGTH)
     {
-        char c = ptr[index + strlen(param) + 1]; // include '=' located after parameter name
+        char c = ptr[(strlen(param) + 1) + index]; // include '=' located after parameter name
 
         if(c == '&')
         {
