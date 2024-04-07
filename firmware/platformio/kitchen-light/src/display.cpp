@@ -1,41 +1,46 @@
-#include "display.h"
+// core includes
+#include <WiFi.h>
 #include <stdint.h>
-#include <Adafruit_GFX.h>    // Core graphics library
-#include <Adafruit_ST7789.h> // Hardware-specific library for ST7789
+#include <math.h>
+
+// project includes
+#include "display.h"
 #include "pinout.h"
 #include "macros.h"
 #include "conf.h"
 #include "utilities.h"
 #include "console.h"
-#include <FastLED.h>
-#include <math.h>
-#include <WiFi.h>
-#include <Preferences.h>
 #include "kelvin2RGB.h"
 #include "images.h"
+#include "colors.h"
+
+// lib includes
+#include <Adafruit_GFX.h>    // Core graphics library
+#include <Adafruit_ST7789.h> // Hardware-specific library for ST7789
+#include <FastLED.h>
+#include <Preferences.h>
 
 Adafruit_ST7789 display = Adafruit_ST7789(DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_RST_PIN);
 
 void setupDisplay()
 {
     CONSOLE("Display: ")
+    
     display.init(DISPLAY_WIDTH, DISPLAY_HEIGHT);       
     display.setRotation(DISPLAY_ROTATION_DEGREE/90);
     display.invertDisplay(false); 
-    display.fillScreen(ST77XX_BLACK);
-    
-    CONSOLE_CRLF("OK") 
-}
-
-void showPleaseWaitOnDisplay()
-{
-    clearDisplay();
-
+    display.fillScreen(COLOR_RGB565_DISPLAY_BACKGROUND);
     display.setCursor(4, 4);
-    display.setTextColor(ST77XX_WHITE);
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2);
     display.setTextWrap(true);
-    display.print("Please wait ...");    
+    display.print("Please wait ..."); 
+
+    delay(500);
+
+    displayLedControl(true, false); // enabling display LED some time after init removes all the random flickering that is going on during display setup
+
+    CONSOLE_CRLF("OK") 
 }
 
 void loadDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t previousColorTemperatureIndex)
@@ -47,7 +52,7 @@ void loadDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t
     }
 
     display.setCursor(PICKER_OFFSET_X, PICKER_OFFSET_Y - 30);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 3);
     display.setTextWrap(false);
     display.print("COLOR TEMPERATURE");
@@ -93,7 +98,7 @@ void loadDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColorHu
     }
 
     display.setCursor(PICKER_OFFSET_X, PICKER_OFFSET_Y - 30);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 3);
     display.setTextWrap(false);
     display.print("COLOR HUE");
@@ -105,11 +110,11 @@ void loadDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColorHu
 
 void loadDisplayBrightness(uint8_t brightness)
 {
-    display.drawRect(PICKER_OFFSET_X, PICKER_OFFSET_Y, PICKER_WIDTH, PICKER_HEIGHT, RGB888_TO_RGB565(255,255,255));
-    display.drawRect(PICKER_OFFSET_X + 1, PICKER_OFFSET_Y + 1, PICKER_WIDTH - 2, PICKER_HEIGHT - 2, RGB888_TO_RGB565(255,255,255));
+    display.drawRect(PICKER_OFFSET_X, PICKER_OFFSET_Y, PICKER_WIDTH, PICKER_HEIGHT, COLOR_RGB565_DISPLAY_FOREGROUND);
+    display.drawRect(PICKER_OFFSET_X + 1, PICKER_OFFSET_Y + 1, PICKER_WIDTH - 2, PICKER_HEIGHT - 2, COLOR_RGB565_DISPLAY_FOREGROUND);
 
     display.setCursor(PICKER_OFFSET_X, PICKER_OFFSET_Y - 30);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 3);
     display.setTextWrap(false);
     display.print("BRIGHTNESS");
@@ -124,19 +129,19 @@ void loadDisplayNumberOfLeds()
     clearDisplay();
 
     display.setCursor(5, 6);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(3, 3);
     display.setTextWrap(false);
     display.print("Number of LEDs\r\n");
 
     display.setCursor(5, display.height() - 40);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 2);
     display.setTextWrap(false);
     display.print("Change -> rotate any knob");
 
     display.setCursor(5, display.height() - 20);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 2);
     display.setTextWrap(false);
     display.print("Accept -> push any knob");
@@ -146,16 +151,16 @@ void loadDisplayNumberOfLeds()
 
 void updateDisplayNumberOfLeds(uint16_t numberOfLeds, bool valueLocked)
 {
-    display.fillRect(0, 60, display.width(), display.height() - (60 + 40), RGB888_TO_RGB565(0, 0, 0));
+    display.fillRect(0, 60, display.width(), display.height() - (60 + 40), COLOR_RGB565_DISPLAY_BACKGROUND);
     display.setCursor(6, 60);
     
     if(valueLocked)
     {
-        display.setTextColor(RGB888_TO_RGB565(0, 255, 0));
+        display.setTextColor(COLOR_RGB565_NUMBER_OF_LEDS_CONFIRMED);
     }
     else
     {
-        display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+        display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     }
 
     display.setTextSize(12, 17);
@@ -271,16 +276,16 @@ CRGB calculateColorHueFromPickerPosition(uint16_t pickerPosition)
 
 void updateDisplayColorHue(uint16_t currentColorHueIndex, uint16_t previousColorHueIndex)
 {
-    display.fillTriangle(PICKER_OFFSET_X + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
-    display.fillTriangle(PICKER_OFFSET_X + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
+    display.fillTriangle(PICKER_OFFSET_X + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + previousColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, COLOR_RGB565_DISPLAY_BACKGROUND);
+    display.fillTriangle(PICKER_OFFSET_X + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + currentColorHueIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, COLOR_RGB565_COLOR_PICKER_ARROW);
    
     CONSOLE_CRLF("DISPLAY: COLOR HUE UPDATED")
 }
 
 void updateDisplayColorTemperature(uint16_t currentColorTemperatureIndex, uint16_t previousColorTemperatureIndex)
 {
-    display.fillTriangle(PICKER_OFFSET_X + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(0, 0, 0));
-    display.fillTriangle(PICKER_OFFSET_X + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, RGB888_TO_RGB565(255, 0, 0));
+    display.fillTriangle(PICKER_OFFSET_X + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + previousColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, COLOR_RGB565_DISPLAY_BACKGROUND);
+    display.fillTriangle(PICKER_OFFSET_X + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2, (PICKER_OFFSET_X - 8) + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, (PICKER_OFFSET_X + 8) + currentColorTemperatureIndex, PICKER_OFFSET_Y + PICKER_HEIGHT + 2 + 15, COLOR_RGB565_COLOR_PICKER_ARROW);
    
     CONSOLE_CRLF("DISPLAY: COLOR TEMPERATURE UPDATED")
 }
@@ -291,12 +296,12 @@ void updateDisplayBrightness(uint8_t brightness)
 
     for(uint16_t i = 0; i < barWidth; i++)
     {
-        display.drawFastVLine(PICKER_OFFSET_X + 2 + i, PICKER_OFFSET_Y + 2, PICKER_HEIGHT - 4, RGB888_TO_RGB565(255, 255, 255));
+        display.drawFastVLine(PICKER_OFFSET_X + 2 + i, PICKER_OFFSET_Y + 2, PICKER_HEIGHT - 4, COLOR_RGB565_DISPLAY_FOREGROUND);
     } 
 
     for(uint16_t i = barWidth; i < PICKER_WIDTH - 4; i++)
     {
-        display.drawFastVLine(PICKER_OFFSET_X + 2 + i, PICKER_OFFSET_Y + 2, PICKER_HEIGHT - 4, RGB888_TO_RGB565(0, 0, 0));
+        display.drawFastVLine(PICKER_OFFSET_X + 2 + i, PICKER_OFFSET_Y + 2, PICKER_HEIGHT - 4, COLOR_RGB565_DISPLAY_BACKGROUND);
     } 
 
     CONSOLE_CRLF("DISPLAY: BRIGHTNESS UPDATED")
@@ -304,168 +309,168 @@ void updateDisplayBrightness(uint8_t brightness)
 
 void drawWifiSignalUndefined()
 {
-    display.fillRect(display.width() - 64, 0, 64, 32, RGB888_TO_RGB565(0, 0, 0)); 
+    display.fillRect(display.width() - 64, 0, 64, 32, COLOR_RGB565_DISPLAY_BACKGROUND); 
 }
 
 void drawWifiSignalDisconnected()
 {
-    display.fillRect(display.width() - 64, 0, 64, 32, RGB888_TO_RGB565(0, 0, 0)); 
+    display.fillRect(display.width() - 64, 0, 64, 32, COLOR_RGB565_DISPLAY_BACKGROUND); 
 
     // dot
-    display.fillCircle(display.width() - 22, 28, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.fillCircle(display.width() - 22, 28, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
 
     // 1st ring
-    display.drawFastVLine(display.width() - 22, 18, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.drawFastVLine(display.width() - 22, 18, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, RGB888_TO_RGB565(128, 128, 128));
+        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     }
     display.endWrite();
 
     // 2nd ring
-    display.drawFastVLine(display.width() - 22, 12, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.drawFastVLine(display.width() - 22, 12, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, RGB888_TO_RGB565(128, 128, 128));
+        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     }
     display.endWrite();
 
     // 3rd ring
-    display.drawFastVLine(display.width() - 22, 6, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.drawFastVLine(display.width() - 22, 6, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, RGB888_TO_RGB565(128, 128, 128));
+        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     }
     display.endWrite();
 
     // remove excessive parts of rings
-    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, RGB888_TO_RGB565(0, 0, 0));
-    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, RGB888_TO_RGB565(0, 0, 0)); 
+    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, COLOR_RGB565_DISPLAY_BACKGROUND);
+    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, COLOR_RGB565_DISPLAY_BACKGROUND); 
 
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawLine(display.width() - 44, i, display.width() - 1, 30 + i, RGB888_TO_RGB565(255, 0, 0));
+        display.drawLine(display.width() - 44, i, display.width() - 1, 30 + i, COLOR_RGB565_WIFI_SIGNAL_CROSSED);
     }
 }
 
 void drawWifiSignalBad()
 {
-    display.fillRect(display.width() - 64, 0, 64, 32, RGB888_TO_RGB565(0, 0, 0)); 
+    display.fillRect(display.width() - 64, 0, 64, 32, COLOR_RGB565_DISPLAY_BACKGROUND); 
 
     // dot
-    display.fillCircle(display.width() - 22, 28, 3, RGB888_TO_RGB565(255, 0, 0));
+    display.fillCircle(display.width() - 22, 28, 3, COLOR_RGB565_COLOR_PICKER_ARROW);
 
     // 1st ring
-    display.drawFastVLine(display.width() - 22, 18, 3, RGB888_TO_RGB565(255, 0, 0));
+    display.drawFastVLine(display.width() - 22, 18, 3, COLOR_RGB565_COLOR_PICKER_ARROW);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, RGB888_TO_RGB565(255, 0, 0));
+        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, COLOR_RGB565_COLOR_PICKER_ARROW);
     }
     display.endWrite();
 
     // 2nd ring
-    display.drawFastVLine(display.width() - 22, 12, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.drawFastVLine(display.width() - 22, 12, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, RGB888_TO_RGB565(128, 128, 128));
+        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     }
     display.endWrite();
 
     // 3rd ring
-    display.drawFastVLine(display.width() - 22, 6, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.drawFastVLine(display.width() - 22, 6, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, RGB888_TO_RGB565(128, 128, 128));
+        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     }
     display.endWrite();
 
     // remove excessive parts of rings
-    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, RGB888_TO_RGB565(0, 0, 0));
-    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, RGB888_TO_RGB565(0, 0, 0)); 
+    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, COLOR_RGB565_DISPLAY_BACKGROUND);
+    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, COLOR_RGB565_DISPLAY_BACKGROUND); 
 }
 
 void drawWifiSignalGood()
 {
-    display.fillRect(display.width() - 64, 0, 64, 32, RGB888_TO_RGB565(0, 0, 0)); 
+    display.fillRect(display.width() - 64, 0, 64, 32, COLOR_RGB565_DISPLAY_BACKGROUND); 
 
     // dot
-    display.fillCircle(display.width() - 22, 28, 3, RGB888_TO_RGB565(255, 255, 0));
+    display.fillCircle(display.width() - 22, 28, 3, COLOR_RGB565_WIFI_SIGNAL_GOOD);
 
     // 1st ring
-    display.drawFastVLine(display.width() - 22, 18, 3, RGB888_TO_RGB565(255, 255, 0));
+    display.drawFastVLine(display.width() - 22, 18, 3, COLOR_RGB565_WIFI_SIGNAL_GOOD);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, RGB888_TO_RGB565(255, 255, 0));
+        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, COLOR_RGB565_WIFI_SIGNAL_GOOD);
     }
     display.endWrite();
 
     // 2nd ring
-    display.drawFastVLine(display.width() - 22, 12, 3, RGB888_TO_RGB565(255, 255, 0));
+    display.drawFastVLine(display.width() - 22, 12, 3, COLOR_RGB565_WIFI_SIGNAL_GOOD);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, RGB888_TO_RGB565(255, 255, 0));
+        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, COLOR_RGB565_WIFI_SIGNAL_GOOD);
     }
     display.endWrite();
 
     // 3rd ring
-    display.drawFastVLine(display.width() - 22, 6, 3, RGB888_TO_RGB565(128, 128, 128));
+    display.drawFastVLine(display.width() - 22, 6, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, RGB888_TO_RGB565(128, 128, 128));
+        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
     }
     display.endWrite();
 
     // remove excessive parts of rings
-    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, RGB888_TO_RGB565(0, 0, 0));
-    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, RGB888_TO_RGB565(0, 0, 0)); 
+    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, COLOR_RGB565_DISPLAY_BACKGROUND);
+    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, COLOR_RGB565_DISPLAY_BACKGROUND); 
 }
 
 void drawWifiSignalExcellent()
 {
-    display.fillRect(display.width() - 64, 0, 64, 32, RGB888_TO_RGB565(0, 0, 0)); 
+    display.fillRect(display.width() - 64, 0, 64, 32, COLOR_RGB565_DISPLAY_BACKGROUND); 
 
     // dot
-    display.fillCircle(display.width() - 22, 28, 3, RGB888_TO_RGB565(0, 255, 0));
+    display.fillCircle(display.width() - 22, 28, 3, COLOR_RGB565_WIFI_SIGNAL_EXCELLENT);
 
     // 1st ring
-    display.drawFastVLine(display.width() - 22, 18, 3, RGB888_TO_RGB565(0, 255, 0));
+    display.drawFastVLine(display.width() - 22, 18, 3, COLOR_RGB565_WIFI_SIGNAL_EXCELLENT);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, RGB888_TO_RGB565(0, 255, 0));
+        display.drawCircleHelper(display.width() - 22, 28, i + 8, 3, COLOR_RGB565_WIFI_SIGNAL_EXCELLENT);
     }
     display.endWrite();
 
     // 2nd ring
-    display.drawFastVLine(display.width() - 22, 12, 3, RGB888_TO_RGB565(0, 255, 0));
+    display.drawFastVLine(display.width() - 22, 12, 3, COLOR_RGB565_WIFI_SIGNAL_EXCELLENT);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, RGB888_TO_RGB565(0, 255, 0));
+        display.drawCircleHelper(display.width() - 22, 28, i + 14, 3, COLOR_RGB565_WIFI_SIGNAL_EXCELLENT);
     }
     display.endWrite();
 
     // 3rd ring
-    display.drawFastVLine(display.width() - 22, 6, 3, RGB888_TO_RGB565(0, 255, 0));
+    display.drawFastVLine(display.width() - 22, 6, 3, COLOR_RGB565_WIFI_SIGNAL_EXCELLENT);
     display.startWrite();
     for(uint8_t i = 0; i < 3; i++)
     {
-        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, RGB888_TO_RGB565(0, 255, 0));
+        display.drawCircleHelper(display.width() - 22, 28, i + 20, 3, COLOR_RGB565_WIFI_SIGNAL_EXCELLENT);
     }
     display.endWrite();
 
     // remove excessive parts of rings
-    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, RGB888_TO_RGB565(0, 0, 0));
-    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, RGB888_TO_RGB565(0, 0, 0));
+    display.fillTriangle(display.width() - 54, 0, display.width() - 54, 28, display.width() - 25, 28, COLOR_RGB565_DISPLAY_BACKGROUND);
+    display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, COLOR_RGB565_DISPLAY_BACKGROUND);
 }
 
 void updateWifiSignal(WifiSignal wifiSignal)
@@ -498,9 +503,9 @@ void updateHour(uint8_t hour, bool invalid = false)
 {
     if(!invalid)
     {
-        display.fillRect(0, 60, 140, 120, RGB888_TO_RGB565(0, 0, 0));
+        display.fillRect(0, 60, 140, 120, COLOR_RGB565_DISPLAY_BACKGROUND);
         display.setCursor(6, 60);
-        display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+        display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
         display.setTextSize(12, 17);
         display.setTextWrap(false);
 
@@ -515,12 +520,12 @@ void updateHour(uint8_t hour, bool invalid = false)
 
 void updateDoubledot(bool visible)
 {
-    display.fillRect(140, 60, 40, 120, RGB888_TO_RGB565(0, 0, 0));
+    display.fillRect(140, 60, 40, 120, COLOR_RGB565_DISPLAY_BACKGROUND);
 
     if(visible)
     {
         display.setCursor(130, 60);
-        display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+        display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
         display.setTextSize(12, 17); 
         display.setTextWrap(false);
         display.print(':'); 
@@ -531,9 +536,9 @@ void updateMinute(uint8_t minute, bool invalid = false)
 {
     if(!invalid)
     {
-        display.fillRect(180, 60, 140, 120, RGB888_TO_RGB565(0, 0, 0));
+        display.fillRect(180, 60, 140, 120, COLOR_RGB565_DISPLAY_BACKGROUND);
         display.setCursor(182, 60);
-        display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+        display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
         display.setTextSize(12, 17);
         display.setTextWrap(false);
 
@@ -548,9 +553,9 @@ void updateMinute(uint8_t minute, bool invalid = false)
 
 void updateTemperature(float temperature, bool invalid = false)
 {
-    display.fillRect(0, display.height() - 39, display.width() * 1/4 - 22, 39, RGB888_TO_RGB565(0, 0, 0));
+    display.fillRect(0, display.height() - 39, display.width() * 1/4 - 22, 39, COLOR_RGB565_DISPLAY_BACKGROUND);
     display.setCursor(5, display.height() - 26);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(3, 3);
     display.setTextWrap(false);
 
@@ -562,9 +567,9 @@ void updateTemperature(float temperature, bool invalid = false)
 
 void updateDate(uint8_t day, uint8_t month, uint16_t year, bool invalid = false)
 {
-    display.fillRect(0, 0, display.width() - 64, 40, RGB888_TO_RGB565(0, 0, 0));
+    display.fillRect(0, 0, display.width() - 64, 40, COLOR_RGB565_DISPLAY_BACKGROUND);
     display.setCursor(5, 6);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(3, 3);
     display.setTextWrap(false);
 
@@ -580,9 +585,9 @@ void updateDate(uint8_t day, uint8_t month, uint16_t year, bool invalid = false)
 
 void updateHumidity(uint8_t humidity, bool invalid = false)
 {
-    display.fillRect(display.width() * 1/4 + 1, display.height() - 39, display.width() * 1/4 - 22, 39, RGB888_TO_RGB565(0, 0, 0));
+    display.fillRect(display.width() * 1/4 + 1, display.height() - 39, display.width() * 1/4 - 22, 39, COLOR_RGB565_DISPLAY_BACKGROUND);
     display.setCursor(display.width() * 1/4 + 6, display.height() - 26);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(3, 3);
     display.setTextWrap(false);
     
@@ -594,9 +599,9 @@ void updateHumidity(uint8_t humidity, bool invalid = false)
 
 void updateWindSpeed(float windGust, bool invalid = false)
 {
-    display.fillRect(display.width() * 2/4 + 1, display.height() - 39, display.width() * 1/4 - 22, 39, RGB888_TO_RGB565(0, 0, 0));
+    display.fillRect(display.width() * 2/4 + 1, display.height() - 39, display.width() * 1/4 - 22, 39, COLOR_RGB565_DISPLAY_BACKGROUND);
     display.setCursor(display.width() * 2/4 + 6, display.height() - 26);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(3, 3);
     display.setTextWrap(false);
 
@@ -630,82 +635,82 @@ void drawRGB565_filtered(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const u
 
 void updateWeather(Weather weather, bool invalid = false)
 {
-    display.fillRect(display.width() * 3/4 + 1, display.height() - 39, display.width() - 1, 39, RGB888_TO_RGB565(0, 0, 0)); 
+    display.fillRect(display.width() * 3/4 + 1, display.height() - 39, display.width() - 1, 39, COLOR_RGB565_DISPLAY_BACKGROUND); 
 
     if(!invalid)
     {
         switch(weather)
         {
             case Weather::CLEAR_SKY_DAY:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01d, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01d, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
 
             case Weather::CLEAR_SKY_NIGHT:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01n, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_01n, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
             
             case Weather::FEW_CLOUDS_DAY:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02d, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02d, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
 
             case Weather::FEW_CLOUDS_NIGHT:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02n, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_02n, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
                 
             case Weather::SCATTERED_CLOUDS_DAY:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03d, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03d, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
 
             case Weather::SCATTERED_CLOUDS_NIGHT:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03n, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_03n, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
                 
             case Weather::BROKEN_CLOUDS_DAY:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04d, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04d, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
 
             case Weather::BROKEN_CLOUDS_NIGHT:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04n, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_04n, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
                 
             case Weather::SHOWER_RAIN_DAY:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09d, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09d, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
 
             case Weather::SHOWER_RAIN_NIGHT:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09n, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_09n, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
                 
             case Weather::RAIN_DAY:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10d, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10d, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
 
             case Weather::RAIN_NIGHT:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10n, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_10n, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
                 
             case Weather::THUNDERSTORM_DAY:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11d, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11d, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
 
             case Weather::THUNDERSTORM_NIGHT:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11n, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_11n, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
                 
             case Weather::SNOW_DAY:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13d, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13d, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
 
             case Weather::SNOW_NIGHT:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13n, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_13n, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
                 
             case Weather::MIST_DAY:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50d, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50d, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
 
             case Weather::MIST_NIGHT:
-                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50n, RGB888_TO_RGB565(0, 0, 0));
+                drawRGB565_filtered(display.width() * 3/4 + 9, display.height() - 35, IMAGE_WIDTH, IMAGE_HEIGHT, image_50n, COLOR_RGB565_IGNORE_IN_BMP_PICTURES);
                 break;
 
             default:
@@ -716,40 +721,40 @@ void updateWeather(Weather weather, bool invalid = false)
 
 void drawFixedParts()
 {
-    display.drawFastHLine(0, display.height() - 40, display.width(), RGB888_TO_RGB565(255, 255, 255));
-    display.drawFastHLine(0, 40, display.width(), RGB888_TO_RGB565(255, 255, 255));
-    display.drawFastVLine(display.width() * 1/4, display.height() - 40, 40, RGB888_TO_RGB565(255, 255, 255));
-    display.drawFastVLine(display.width() * 2/4, display.height() - 40, 40, RGB888_TO_RGB565(255, 255, 255));
-    display.drawFastVLine(display.width() * 3/4, display.height() - 40, 40, RGB888_TO_RGB565(255, 255, 255));
+    display.drawFastHLine(0, display.height() - 40, display.width(), COLOR_RGB565_DISPLAY_FOREGROUND);
+    display.drawFastHLine(0, 40, display.width(), COLOR_RGB565_DISPLAY_FOREGROUND);
+    display.drawFastVLine(display.width() * 1/4, display.height() - 40, 40, COLOR_RGB565_DISPLAY_FOREGROUND);
+    display.drawFastVLine(display.width() * 2/4, display.height() - 40, 40, COLOR_RGB565_DISPLAY_FOREGROUND);
+    display.drawFastVLine(display.width() * 3/4, display.height() - 40, 40, COLOR_RGB565_DISPLAY_FOREGROUND);
 
     // °C
     display.setCursor(display.width() * 1/4 - 13, display.height() - 36);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 2);
     display.setTextWrap(false);
     display.print("C");
 
-    display.fillCircle(display.width() * 1/4 - 18, display.height() - 32, 2, RGB888_TO_RGB565(255, 255, 255));
-    display.fillCircle(display.width() * 1/4 - 18, display.height() - 32, 1, RGB888_TO_RGB565(0, 0, 0));
+    display.fillCircle(display.width() * 1/4 - 18, display.height() - 32, 2, COLOR_RGB565_DISPLAY_FOREGROUND);
+    display.fillCircle(display.width() * 1/4 - 18, display.height() - 32, 1, COLOR_RGB565_DISPLAY_BACKGROUND);
 
     // %
     display.setCursor(display.width() * 2/4 - 13, display.height() - 36);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 2);
     display.setTextWrap(false);
     display.print("%");
 
     // m/s
     display.setCursor(display.width() * 3/4 - 13, display.height() - 38);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 2);
     display.setTextWrap(false);
     display.print("m");
 
-    display.drawFastHLine(display.width() * 3/4 - 13, display.height() - 22, 11, RGB888_TO_RGB565(255, 255, 255));
+    display.drawFastHLine(display.width() * 3/4 - 13, display.height() - 22, 11, COLOR_RGB565_DISPLAY_FOREGROUND);
 
     display.setCursor(display.width() * 3/4 - 13, display.height() - 22);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 2);
     display.setTextWrap(false);
     display.print("s");
@@ -759,9 +764,9 @@ void drawSetupText()
 {
     char buff[256] = "";
     
-    display.fillRect(0, 41, display.width(), display.height() - 82, RGB888_TO_RGB565(0, 0, 0));
+    display.fillRect(0, 41, display.width(), display.height() - 82, COLOR_RGB565_DISPLAY_BACKGROUND);
     display.setCursor(0, 47);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 2);
     display.setTextWrap(true);
 
@@ -774,9 +779,9 @@ void drawSetupText()
 
 void drawOfflineMode()
 {
-    display.fillRect(0, 41, display.width(), display.height() - 82, RGB888_TO_RGB565(0, 0, 0));
+    display.fillRect(0, 41, display.width(), display.height() - 82, COLOR_RGB565_DISPLAY_BACKGROUND);
     display.setCursor(0, 47);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 2);
     display.setTextWrap(true);
     display.print("Offline mode enabled.\r\n\r\n");  
@@ -785,11 +790,11 @@ void drawOfflineMode()
 
 void loadAndExecuteFactoryReset(Preferences *preferences)
 {
-    display.drawRect(PICKER_OFFSET_X, PICKER_OFFSET_Y, PICKER_WIDTH, PICKER_HEIGHT, RGB888_TO_RGB565(255,255,255));
-    display.drawRect(PICKER_OFFSET_X + 1, PICKER_OFFSET_Y + 1, PICKER_WIDTH - 2, PICKER_HEIGHT - 2, RGB888_TO_RGB565(255,255,255));
+    display.drawRect(PICKER_OFFSET_X, PICKER_OFFSET_Y, PICKER_WIDTH, PICKER_HEIGHT, COLOR_RGB565_DISPLAY_FOREGROUND);
+    display.drawRect(PICKER_OFFSET_X + 1, PICKER_OFFSET_Y + 1, PICKER_WIDTH - 2, PICKER_HEIGHT - 2, COLOR_RGB565_DISPLAY_FOREGROUND);
 
     display.setCursor(PICKER_OFFSET_X, PICKER_OFFSET_Y - 30);
-    display.setTextColor(RGB888_TO_RGB565(255, 255, 255));
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 3);
     display.setTextWrap(false);
     display.print("FACTORY RESET");
@@ -806,7 +811,7 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
             return;
         }
 
-        display.drawFastVLine(PICKER_OFFSET_X + 2 + i, PICKER_OFFSET_Y + 2, PICKER_HEIGHT - 4, RGB888_TO_RGB565(255, 255, 255));
+        display.drawFastVLine(PICKER_OFFSET_X + 2 + i, PICKER_OFFSET_Y + 2, PICKER_HEIGHT - 4, COLOR_RGB565_DISPLAY_FOREGROUND);
 
         delay((FACTORY_RESET_TIMEOUT_MS / PICKER_WIDTH) - (millis() - timer));  
     }
@@ -985,6 +990,16 @@ void updateMainScreen(bool offlineMode, bool validWifiSetup, bool validWeather, 
 
 void clearDisplay()
 {
-    display.fillScreen(RGB888_TO_RGB565(0, 0, 0));
+    display.fillScreen(COLOR_RGB565_DISPLAY_BACKGROUND);
     CONSOLE_CRLF("DISPLAY: CLEARED")
+}
+
+void displayLedControl(bool pinVal, bool setupPin)
+{
+    if(setupPin)
+    {
+        pinMode(DISPLAY_LED_PIN, OUTPUT);
+    }
+
+    digitalWrite(DISPLAY_LED_PIN, pinVal ? HIGH : LOW);
 }

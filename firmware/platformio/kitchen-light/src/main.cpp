@@ -13,8 +13,9 @@
 #include "display.h"
 #include "utilities.h"
 #include "html.h"
+#include "colors.h"
 
-// libs
+// lib includes
 #include <RotaryEncoder.h>
 #include <FastLED.h>
 #include <ArduinoJson.h>
@@ -233,7 +234,7 @@ void setup_LED_strip()
 
         for(uint16_t i = 0; i < LED_STRIP_MAX_LED_COUNT; i++)
         {
-            LED_stripArray[i] = CRGB(0, 0, 0);    
+            LED_stripArray[i] = CRGB::Black;    
         }
 
         FastLED.setBrightness(DEFAULT_BRIGHTNESS);
@@ -270,13 +271,13 @@ void setup_LED_strip()
 
                 for(uint16_t i = 0; i < numberOfLeds; i++)
                 {
-                    LED_stripArray[i] = CRGB(0, 255, 0);    
+                    LED_stripArray[i] = COLOR_RGB888_SELECT_N_LEDS;    
                 }
 
                 // in case we decrease value, make sure we set the last LED from previous numberOfLeds to black
                 if(encoder_1_direction == -1)
                 {
-                    LED_stripArray[numberOfLeds] = CRGB(0, 0, 0);    
+                    LED_stripArray[numberOfLeds] = CRGB::Black;    
                 }
 
                 FastLED.show();
@@ -306,13 +307,13 @@ void setup_LED_strip()
 
                 for(uint16_t i = 0; i < numberOfLeds; i++)
                 {
-                    LED_stripArray[i] = CRGB(0, 255, 0);    
+                    LED_stripArray[i] = COLOR_RGB888_SELECT_N_LEDS;    
                 }
 
                 // in case we decrease value, make sure we set the last LED from previous numberOfLeds to black
                 if(encoder_2_direction == -1)
                 {
-                    LED_stripArray[numberOfLeds] = CRGB(0, 0, 0);    
+                    LED_stripArray[numberOfLeds] = CRGB::Black;    
                 }
 
                 FastLED.show();
@@ -755,14 +756,10 @@ void httpGETRequest(char* serverName, char *payload) {
     WiFiClient client;
     HTTPClient http;
 
-    // Your Domain name with URL path or IP address with path
     http.begin(client, serverName);
     http.setTimeout(1000);
 
-    // Send HTTP POST request
-    int httpResponseCode = http.GET();
-
-    if (httpResponseCode > 0) 
+    if (http.GET() > 0) 
     {
         http.getString().toCharArray(payload, MAX_HTTP_PAYLOAD_SIZE + 1);
     }
@@ -948,7 +945,7 @@ void decodeUrlCodes(char *valBuffFiltered, char *valBuff)
     }           
 }
 
-void parseParameter(char *buff, const char *param, char *saveToParam, uint16_t paramMaxLength, char terminationChar)
+void parseParameter(char *buff, const char *param, char *saveToParam, uint16_t paramMaxLength)
 {
     char valBuff[MAX_PREFERENCE_LENGTH + 1] = "";
     char c = '\0';
@@ -959,7 +956,8 @@ void parseParameter(char *buff, const char *param, char *saveToParam, uint16_t p
     {
         char c = ptr[index + (strlen(param))]; // '=' already in param 
 
-        if(c == terminationChar)
+        // param value is usually terminated with &, but if it is last param value in header, it is simply terminated with ' '
+        if(c == '&' || c == ' ' )
         {
             char valBuffFiltered[MAX_PREFERENCE_LENGTH + 1] = "";
             decodeUrlCodes(valBuffFiltered, valBuff); // for example '/' is encoded into %2F, put it back to '/'
@@ -981,22 +979,22 @@ void parseNewParams(char *buff, WeatherLocationType weatherLocationType)
 {
     // including '=' to param search, so we do not mistake for example "city=" for "city" in "cityAndCountryCode"
 
-    parseParameter(buff, "ssid=", wifi_ssid, WIFI_SSID_MAX_LENGTH, '&');
-    parseParameter(buff, "pwd=", wifi_pwd, WIFI_PWD_MAX_LENGTH, '&');
+    parseParameter(buff, "ssid=", wifi_ssid, WIFI_SSID_MAX_LENGTH);
+    parseParameter(buff, "pwd=", wifi_pwd, WIFI_PWD_MAX_LENGTH);
 
     if(weatherLocationType == WeatherLocationType::CITY_AND_COUNTRY_CODE)
     {
-        parseParameter(buff, "city=", city, CITY_MAX_LENGTH, '&');
-        parseParameter(buff, "country-code=", countryCode, COUNTRY_CODE_MAX_LENGTH, '&');
+        parseParameter(buff, "city=", city, CITY_MAX_LENGTH);
+        parseParameter(buff, "country-code=", countryCode, COUNTRY_CODE_MAX_LENGTH);
     }
     else if(weatherLocationType == WeatherLocationType::LAT_LON)
     {
-        parseParameter(buff, "lat=", lat, LAT_LON_MAX_LENGTH, '&');
-        parseParameter(buff, "lon=", lon, LAT_LON_MAX_LENGTH, '&');   
+        parseParameter(buff, "lat=", lat, LAT_LON_MAX_LENGTH);
+        parseParameter(buff, "lon=", lon, LAT_LON_MAX_LENGTH);   
     }
 
-    parseParameter(buff, "timezone=", timeZone, TIME_ZONE_MAX_LENGTH, '&'); 
-    parseParameter(buff, "api-key=", openWeatherAPI_key, API_KEY_MAX_LENGTH, ' '); // last parameter in form terminates in space in HTTP header
+    parseParameter(buff, "timezone=", timeZone, TIME_ZONE_MAX_LENGTH); 
+    parseParameter(buff, "api-key=", openWeatherAPI_key, API_KEY_MAX_LENGTH); // last parameter in form terminates in space in HTTP header
 }
 
 void saveParsedParamsToPreferences(char *buff, WeatherLocationType weatherLocationType)
@@ -1127,31 +1125,30 @@ void resetDatetime()
     settimeofday(&tv, NULL);
 }
 
-/* Default sync period is 1h. 
- * This can be changed by including "esp_sntp.h" and calling sntp_set_sync_interval(ms)
- * cbSyncTime() is callback to sync.
- * We use this callback to cover case when sync could possibly take couple of seconds, by displaying previous values.
- */
-void callbackSyncTime(struct timeval *tv)
+void callbackSyncDateTime(struct timeval *tv)
 {
     dateTimeSyncTimer = millis();
+    CONSOLE_CRLF("NTP SYNC: OK")
 }
 
 void setup()
 {
-    delay(DELAY_BEFORE_STARTUP_MS);
+    // first thing, make sure to blackout display
+    displayLedControl(false, true);
 
-    sntp_set_time_sync_notification_cb(callbackSyncTime);
+    /* Default sync period is 1h (i think)
+     * This can be changed by including "esp_sntp.h" and calling sntp_set_sync_interval(ms)
+     */
+    sntp_set_time_sync_notification_cb(callbackSyncDateTime);
 
     CONSOLE_SERIAL.begin(CONSOLE_BAUDRATE);
     CONSOLE_CRLF("~~~ SETUP ~~~")
-
+    CONSOLE_CRLF(sntp_get_sync_interval());
     loadPreferences();
     resetDatetime();
     setupRotaryEncoders();
     setupDisplay();
     setup_LED_strip();
-    showPleaseWaitOnDisplay();
 
     if(setupWifi())
     {
@@ -1223,8 +1220,8 @@ void loop()
             updateMainScreen(
                 offlineMode, 
                 validWifiSetup, 
-                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
-                (millis() - dateTimeSyncTimer > DATE_TIME_SYNC_TIMEOUT_MS) ? false : validDateTime, 
+                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup) ? true : false), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
+                validDateTime ? validDateTime : ((millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS && validWifiSetup) ? true : false), // keep displaying date and time up to DATE_TIME_SYNC_TIMEOUT_MS even if not synced with NTP
                 true, 
                 timeInfo.tm_hour, 
                 timeInfo.tm_min, 
@@ -1322,8 +1319,8 @@ void loop()
                     updateMainScreen(
                             offlineMode, 
                             validWifiSetup, 
-                            validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup) ? true : validWeather), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
-                            (millis() - dateTimeSyncTimer > DATE_TIME_SYNC_TIMEOUT_MS) ? false : validDateTime, 
+                            validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup) ? true : false), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
+                            validDateTime ? validDateTime : ((millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS && validWifiSetup) ? true : false), // keep displaying date and time up to DATE_TIME_SYNC_TIMEOUT_MS even if not synced with NTP
                             false, 
                             timeInfo.tm_hour, 
                             timeInfo.tm_min, 

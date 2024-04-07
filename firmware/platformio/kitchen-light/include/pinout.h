@@ -17,6 +17,7 @@
 #define DISPLAY_CS_PIN 10
 #define DISPLAY_RST_PIN 9
 #define DISPLAY_DC_PIN 8
+#define DISPLAY_LED_PIN 17
 
 // random seed
 #define UNCONNECTED_ANALOG_PIN 6
