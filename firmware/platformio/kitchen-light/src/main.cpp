@@ -1103,7 +1103,7 @@ void handleServerClients()
                     client.flush();
                     delay(1000); // sometimes flush was not enaugh
 
-                    CONSOLE_CRLF("SERVER: CLIENT DISCONNECTED")   
+                    client.stop(); 
 
                     CONSOLE_CRLF("ESP32: RESTART")  
                     ESP.restart();   
