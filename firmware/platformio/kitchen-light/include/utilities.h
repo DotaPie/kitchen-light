@@ -21,6 +21,7 @@ enum class Weather {    NONE,
 enum class WeatherLocationType {NONE, CITY_AND_COUNTRY_CODE, LAT_LON};
 
 extern const char* NTP_server_domain;
+extern const IPAddress pingIp;
 extern const char* openWeatherServerUrlformatableCityAndCountryCode;
 extern const char* openWeatherServerUrlformatableLatLon;
 

@@ -19,6 +19,7 @@
 #include <RotaryEncoder.h>
 #include <FastLED.h>
 #include <ArduinoJson.h>
+#include <ESP32Ping.h>
 
 // core globals
 ScreenState state = ScreenState::MAIN; 
@@ -72,6 +73,7 @@ volatile uint32_t dateTimeSyncTimer = 0;
 bool dateTimeValidOnce = false;
 
 // other globals
+bool internetConnection = false;
 WiFiServer server(WIFI_SERVER_PORT); 
 CRGB LED_stripArray[LED_STRIP_MAX_LED_COUNT];
  
@@ -197,17 +199,17 @@ void update_LED_strip()
     FastLED.show();
 }
 
-void updateNumberOfLeds(long direction, bool valueLocked)
+void updateNumberOfLeds(long direction, bool valueLocked, uint8_t multiplier)
 {
-    int32_t tempNumberOfLeds = numberOfLeds + (direction);
+    int32_t tempNumberOfLeds = numberOfLeds + (direction * multiplier);
 
     if(tempNumberOfLeds < 0)
     {
-        tempNumberOfLeds = 0;
+        numberOfLeds = 0;
     }
     else if(tempNumberOfLeds > LED_STRIP_MAX_LED_COUNT)
     {
-        tempNumberOfLeds = LED_STRIP_MAX_LED_COUNT;
+        numberOfLeds = LED_STRIP_MAX_LED_COUNT;
     }
     else 
     {
@@ -266,7 +268,7 @@ void setup_LED_strip()
                 CONSOLE("  |-- direction: ")
                 CONSOLE_CRLF(encoder_1_direction)
 
-                updateNumberOfLeds(encoder_1_direction, false);
+                updateNumberOfLeds(encoder_1_direction, false, 1);
 
                 // in case we decrease value, we first need to pass the numberOfLeds + 1, so we can set last LED from previous numberOfLeds to black
                 FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, encoder_1_direction == -1 ? numberOfLeds + 1 : numberOfLeds).setCorrection(TypicalLEDStrip);
@@ -302,20 +304,23 @@ void setup_LED_strip()
                 CONSOLE("  |-- direction: ")
                 CONSOLE_CRLF(encoder_2_direction)
 
-                updateNumberOfLeds(encoder_2_direction, false);
+                updateNumberOfLeds(encoder_2_direction, false, 10);
 
-                // in case we decrease value, we first need to pass the size numberOfLeds + 1, so we can set last LED from previous numberOfLeds to black
-                FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, encoder_2_direction == -1 ? numberOfLeds + 1 : numberOfLeds).setCorrection(TypicalLEDStrip);
+                // in case we decrease value, we first need to pass the size numberOfLeds + 10, so we can set last 10 LEDs from previous numberOfLeds to black
+                FastLED.addLeds<LED_STRIP_TYPE, LED_STRIP_PIN, COLOR_ORDER>(LED_stripArray, encoder_2_direction == -1 ? numberOfLeds + 10 : numberOfLeds).setCorrection(TypicalLEDStrip);
 
                 for(uint16_t i = 0; i < numberOfLeds; i++)
                 {
                     LED_stripArray[i] = COLOR_RGB888_SELECT_N_LEDS;    
                 }
 
-                // in case we decrease value, make sure we set the last LED from previous numberOfLeds to black
+                // in case we decrease value, make sure we set the last 10 LEDs from previous numberOfLeds to black
                 if(encoder_2_direction == -1)
                 {
-                    LED_stripArray[numberOfLeds] = CRGB::Black;    
+                    for(uint8_t i = 0; i < 10; i++)
+                    {
+                        LED_stripArray[numberOfLeds + i] = CRGB::Black; 
+                    }    
                 }
 
                 FastLED.show();
@@ -1097,7 +1102,7 @@ void handleServerClients()
                     client.print(buff);  
                     client.flush();
                     delay(1000); // sometimes flush was not enaugh
-                    client.stop();
+
                     CONSOLE_CRLF("SERVER: CLIENT DISCONNECTED")   
 
                     CONSOLE_CRLF("ESP32: RESTART")  
@@ -1136,6 +1141,16 @@ void callbackSyncDateTime(struct timeval *tv)
     CONSOLE_CRLF("NTP SYNC: OK")
 }
 
+bool checkInternetConnection()
+{
+    bool ret = Ping.ping(pingIp, 1); // if error, timeout is 1s, but should not be an issue
+
+    CONSOLE("INTERNET CONNECTION: ")
+    CONSOLE_CRLF(ret ? "OK" : "ERROR")
+
+    return ret;
+}
+
 void setup()
 {
     // first thing, make sure to blackout display
@@ -1172,6 +1187,8 @@ void setup()
         {
             weatherSyncTimer = millis();
         }
+
+        internetConnection = checkInternetConnection(); // sometimes returns false, if called too soon after setupWifi(), make less sense after weather and datetime sync, but at least will be true always if internet is available
     }
     else
     {
@@ -1187,6 +1204,7 @@ void loop()
 {
     static uint32_t mainScreenTimer = 0; // force screen refresh immediately after enetering loop
     static uint32_t wifiConnectionCheckTimer = 0; // force wifi check immediately after enetering loop
+    static uint32_t internetConnectionCheckTimer = 0; // force internet check immediately after enetering loop
     static uint32_t wifiConnectionCheckTimeoutSuccess = 0; // value does not matter
     static uint32_t weatherTimer = millis(); // start counting timer to weather sync after entering loop
     static uint32_t rotary_encoder_timer = 0; // value does not matter
@@ -1224,7 +1242,7 @@ void loop()
              */
             clearDisplay();
             updateMainScreen(
-                (!validWeather && !validDateTime), // both failing indicates most probably no internet connection, especially with pool.ntp.org
+                internetConnection,
                 offlineMode, 
                 validWifiSetup, 
                 (validWeather && weatherValidOnce) ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup && weatherValidOnce) ? true : false), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
@@ -1311,6 +1329,13 @@ void loop()
                 updateWifiSignal();
             }
 
+            // check internet connectivity - this costs us roughly 16MB/month when interval is 5s
+            if(millis() - internetConnectionCheckTimer > INTERNET_CONNECTION_CHECK_TIMER_MS)
+            {
+                internetConnectionCheckTimer = millis();   
+                internetConnection = checkInternetConnection();
+            }
+            
             if(state == ScreenState::MAIN)
             {
                 // once a second update local datetime and main screen (if anything needs update)
@@ -1324,7 +1349,7 @@ void loop()
                      * Idea is to override validDateTime from getLocalTime() return after long period of time.
                      */
                     updateMainScreen(
-                            (!validWeather && !validDateTime), // both failing indicates most probably no internet connection, especially with pool.ntp.org
+                            internetConnection,
                             offlineMode, 
                             validWifiSetup, 
                             (validWeather && weatherValidOnce) ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup && weatherValidOnce) ? true : false), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated

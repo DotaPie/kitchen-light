@@ -30,6 +30,7 @@ const char* weatherString[] = {"NONE",
                             };
 
 const char* NTP_server_domain = "pool.ntp.org";
+const IPAddress pingIp(8,8,8,8);
 const char* openWeatherServerUrlformatableCityAndCountryCode = "http://api.openweathermap.org/data/2.5/weather?q=%s,%s&APPID=%s&units=metric";
 const char* openWeatherServerUrlformatableLatLon = "http://api.openweathermap.org/data/2.5/weather?lat=%s&lon=%s&APPID=%s&units=metric";
 

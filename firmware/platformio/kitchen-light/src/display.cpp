@@ -134,24 +134,30 @@ void loadDisplayNumberOfLeds()
     display.setTextWrap(false);
     display.print("Number of LEDs\r\n");
 
+    display.setCursor(5, display.height() - 60);
+    display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
+    display.setTextSize(2, 2);
+    display.setTextWrap(false);
+    display.print("+10/-10 -> left knob");
+
     display.setCursor(5, display.height() - 40);
     display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 2);
     display.setTextWrap(false);
-    display.print("Change -> rotate any knob");
+    display.print("+1/-1 -> right knob");
 
     display.setCursor(5, display.height() - 20);
     display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     display.setTextSize(2, 2);
     display.setTextWrap(false);
-    display.print("Accept -> push any knob");
+    display.print("Push any knob to accept");
 
     CONSOLE_CRLF("DISPLAY: NUMBER OF LEDS LOADED")
 }
 
 void updateDisplayNumberOfLeds(uint16_t numberOfLeds, bool valueLocked)
 {
-    display.fillRect(0, 60, display.width(), display.height() - (60 + 40), COLOR_RGB565_DISPLAY_BACKGROUND);
+    display.fillRect(0, 60, display.width(), display.height() - (60 + 60), COLOR_RGB565_DISPLAY_BACKGROUND);
     display.setCursor(6, 60);
     
     if(valueLocked)
@@ -163,7 +169,7 @@ void updateDisplayNumberOfLeds(uint16_t numberOfLeds, bool valueLocked)
         display.setTextColor(COLOR_RGB565_DISPLAY_FOREGROUND);
     }
 
-    display.setTextSize(12, 17);
+    display.setTextSize(8, 12);
     display.setTextWrap(false); 
 
     display.print(numberOfLeds); 
@@ -473,7 +479,7 @@ void drawWifiSignalExcellent()
     display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, COLOR_RGB565_DISPLAY_BACKGROUND);
 }
 
-void updateWifiSignal(WifiSignal wifiSignal, bool noInternet)
+void updateWifiSignal(WifiSignal wifiSignal, bool internetConnection)
 {
     switch(wifiSignal)
     {
@@ -499,7 +505,7 @@ void updateWifiSignal(WifiSignal wifiSignal, bool noInternet)
     }
 
     // cross out wifi signal as in WifiSignal::DISCONNECTED when no internet
-    if(noInternet && (wifiSignal == WifiSignal::BAD || wifiSignal == WifiSignal::GOOD || wifiSignal == WifiSignal::EXCELLENT))
+    if(!internetConnection && (wifiSignal == WifiSignal::BAD || wifiSignal == WifiSignal::GOOD || wifiSignal == WifiSignal::EXCELLENT))
     {
         for(uint8_t i = 0; i < 3; i++)
         {
@@ -527,7 +533,7 @@ void updateHour(uint8_t hour, bool invalid = false)
     }
 }
 
-void updateDoubledot(bool visible)
+void drawDoubledot(bool visible)
 {
     display.fillRect(140, 60, 40, 120, COLOR_RGB565_DISPLAY_BACKGROUND);
 
@@ -836,7 +842,7 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
     ESP.restart();
 }
 
-void updateMainScreen(bool noInternet, bool offlineMode, bool validWifiSetup, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, Weather weather, WifiSignal wifiSignal)
+void updateMainScreen(bool internetConnection, bool offlineMode, bool validWifiSetup, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, Weather weather, WifiSignal wifiSignal)
 {
     // track previous values
     static uint8_t prevHour = 255; 
@@ -850,19 +856,22 @@ void updateMainScreen(bool noInternet, bool offlineMode, bool validWifiSetup, bo
     static WifiSignal prevWifiSignal = WifiSignal::NONE;
     static Weather prevWeather = Weather::NONE;
 
-    static bool doubledotVisible = false;
-
     static bool previousValidWifiConnection = !validWifiSetup;
     static bool previousValidWeather = !validWeather;
     static bool previousValidDateTime = !validDateTime;
     static bool previousOfflineMode = !offlineMode;
-    static bool previousNoInternet = !noInternet;
+    static bool previousInternetConnection = !internetConnection;
     
     CONSOLE_CRLF("DISPLAY: MAIN UPDATED")
 
     if(forceAll)
     {
         drawFixedParts();
+
+        if(validWifiSetup && validDateTime)
+        {
+            drawDoubledot(true); 
+        }
     }
 
     if((previousValidWifiConnection || forceAll) && !validWifiSetup && !offlineMode)
@@ -874,18 +883,10 @@ void updateMainScreen(bool noInternet, bool offlineMode, bool validWifiSetup, bo
     {
         drawOfflineMode();
     }
-
-    // update on each updateMainScreen() which happens once a second
-    if(validWifiSetup && validDateTime)
-    {
-        updateDoubledot(!doubledotVisible);  
-        doubledotVisible = !doubledotVisible;
-        CONSOLE_CRLF("  |-- DOUBLEDOT UPDATED")
-    }
     
-    if(wifiSignal != prevWifiSignal || noInternet != previousNoInternet || forceAll)
+    if(wifiSignal != prevWifiSignal || internetConnection != previousInternetConnection || forceAll)
     {
-        updateWifiSignal(wifiSignal, noInternet);
+        updateWifiSignal(wifiSignal, internetConnection);
         prevWifiSignal = wifiSignal;
         CONSOLE_CRLF("  |-- WIFI SIGNAL UPDATED")
     } 
@@ -997,9 +998,9 @@ void updateMainScreen(bool noInternet, bool offlineMode, bool validWifiSetup, bo
         previousOfflineMode = offlineMode;
     }
 
-    if(previousNoInternet != noInternet)
+    if(previousInternetConnection != internetConnection)
     {
-        previousNoInternet = noInternet;
+        previousInternetConnection = internetConnection;
     }
 }
 

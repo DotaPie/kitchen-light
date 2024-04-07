@@ -807,7 +807,8 @@ const char *htmlWebPageCompleteFormatterCityAndCountryCode = R"======(
 	</p>
 	
 	<p>
-		<b>Automatically restarting device, please wait ...</b>
+		<b>Automatically restarting device, please wait.</b><br>
+		<b>You can close this tab.</b>
 	</p>
 </body>
 </html>
@@ -832,7 +833,8 @@ const char *htmlWebPageCompleteFormatterLatAndLon = R"======(
 	</p>
 	
 	<p>
-		<b>Automatically restarting device, please wait ...</b>
+		<b>Automatically restarting device, please wait.</b><br>
+		<b>You can close this tab.</b>
 	</p>
 </body>
 </html>

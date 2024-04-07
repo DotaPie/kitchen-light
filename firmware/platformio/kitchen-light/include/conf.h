@@ -43,7 +43,7 @@
 #define COLOR_TEMPERATURE_INDEX_STEP 4 // 8 color picker change for 1 encoder step
 
 // preferences
-#define DEFAULT_PREFERENCES_ID 107 // change this to other number if you want to force default configuration after next upload
+#define DEFAULT_PREFERENCES_ID 2 // change this to other number if you want to force default configuration after next upload
 #define MAX_PREFERENCE_LENGTH 128
 #define FACTORY_RESET_TIMEOUT_MS 5000
 #define INVALID_WIFI_SSID "****"
@@ -63,6 +63,7 @@
 #define MAX_SOFTAP_PWD_LENGTH 32
 #define SERVER_CLIENT_TIMEOUT_MS 10000 // 10 s
 #define WIFI_CONNECTION_CHECK_TIMER_MS 1000
+#define INTERNET_CONNECTION_CHECK_TIMER_MS 5000
 
 // datetime
 #define YEAR_OFFSET 1900
