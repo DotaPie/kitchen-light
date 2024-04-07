@@ -309,12 +309,12 @@ void updateDisplayBrightness(uint8_t brightness)
 
 void drawWifiSignalUndefined()
 {
-    display.fillRect(display.width() - 64, 0, 64, 32, COLOR_RGB565_DISPLAY_BACKGROUND); 
+    display.fillRect(display.width() - 64, 0, 64, 39, COLOR_RGB565_DISPLAY_BACKGROUND); 
 }
 
 void drawWifiSignalDisconnected()
 {
-    display.fillRect(display.width() - 64, 0, 64, 32, COLOR_RGB565_DISPLAY_BACKGROUND); 
+    display.fillRect(display.width() - 64, 0, 64, 39, COLOR_RGB565_DISPLAY_BACKGROUND); 
 
     // dot
     display.fillCircle(display.width() - 22, 28, 3, COLOR_RGB565_WIFI_SIGNAL_EMPTY_RING);
@@ -358,7 +358,7 @@ void drawWifiSignalDisconnected()
 
 void drawWifiSignalBad()
 {
-    display.fillRect(display.width() - 64, 0, 64, 32, COLOR_RGB565_DISPLAY_BACKGROUND); 
+    display.fillRect(display.width() - 64, 0, 64, 39, COLOR_RGB565_DISPLAY_BACKGROUND); 
 
     // dot
     display.fillCircle(display.width() - 22, 28, 3, COLOR_RGB565_COLOR_PICKER_ARROW);
@@ -397,7 +397,7 @@ void drawWifiSignalBad()
 
 void drawWifiSignalGood()
 {
-    display.fillRect(display.width() - 64, 0, 64, 32, COLOR_RGB565_DISPLAY_BACKGROUND); 
+    display.fillRect(display.width() - 64, 0, 64, 39, COLOR_RGB565_DISPLAY_BACKGROUND); 
 
     // dot
     display.fillCircle(display.width() - 22, 28, 3, COLOR_RGB565_WIFI_SIGNAL_GOOD);
@@ -436,7 +436,7 @@ void drawWifiSignalGood()
 
 void drawWifiSignalExcellent()
 {
-    display.fillRect(display.width() - 64, 0, 64, 32, COLOR_RGB565_DISPLAY_BACKGROUND); 
+    display.fillRect(display.width() - 64, 0, 64, 39, COLOR_RGB565_DISPLAY_BACKGROUND); 
 
     // dot
     display.fillCircle(display.width() - 22, 28, 3, COLOR_RGB565_WIFI_SIGNAL_EXCELLENT);
@@ -473,7 +473,7 @@ void drawWifiSignalExcellent()
     display.fillTriangle(display.width() + 10, 0, display.width() + 10, 28, display.width() - 19, 28, COLOR_RGB565_DISPLAY_BACKGROUND);
 }
 
-void updateWifiSignal(WifiSignal wifiSignal)
+void updateWifiSignal(WifiSignal wifiSignal, bool noInternet)
 {
     switch(wifiSignal)
     {
@@ -496,6 +496,15 @@ void updateWifiSignal(WifiSignal wifiSignal)
         default:
             drawWifiSignalUndefined();
             break;
+    }
+
+    // cross out wifi signal as in WifiSignal::DISCONNECTED when no internet
+    if(noInternet && (wifiSignal == WifiSignal::BAD || wifiSignal == WifiSignal::GOOD || wifiSignal == WifiSignal::EXCELLENT))
+    {
+        for(uint8_t i = 0; i < 3; i++)
+        {
+            display.drawLine(display.width() - 44, i, display.width() - 1, 30 + i, COLOR_RGB565_WIFI_SIGNAL_CROSSED);
+        }      
     }
 }
 
@@ -827,7 +836,7 @@ void loadAndExecuteFactoryReset(Preferences *preferences)
     ESP.restart();
 }
 
-void updateMainScreen(bool offlineMode, bool validWifiSetup, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, Weather weather, WifiSignal wifiSignal)
+void updateMainScreen(bool noInternet, bool offlineMode, bool validWifiSetup, bool validWeather, bool validDateTime, bool forceAll, uint8_t hour, uint8_t minute, uint8_t day, uint8_t month, uint16_t year, float temperature, uint8_t humidity, float windSpeed, Weather weather, WifiSignal wifiSignal)
 {
     // track previous values
     static uint8_t prevHour = 255; 
@@ -847,6 +856,7 @@ void updateMainScreen(bool offlineMode, bool validWifiSetup, bool validWeather, 
     static bool previousValidWeather = !validWeather;
     static bool previousValidDateTime = !validDateTime;
     static bool previousOfflineMode = !offlineMode;
+    static bool previousNoInternet = !noInternet;
     
     CONSOLE_CRLF("DISPLAY: MAIN UPDATED")
 
@@ -873,9 +883,9 @@ void updateMainScreen(bool offlineMode, bool validWifiSetup, bool validWeather, 
         CONSOLE_CRLF("  |-- DOUBLEDOT UPDATED")
     }
     
-    if(wifiSignal != prevWifiSignal || forceAll)
+    if(wifiSignal != prevWifiSignal || noInternet != previousNoInternet || forceAll)
     {
-        updateWifiSignal(wifiSignal);
+        updateWifiSignal(wifiSignal, noInternet);
         prevWifiSignal = wifiSignal;
         CONSOLE_CRLF("  |-- WIFI SIGNAL UPDATED")
     } 
@@ -985,6 +995,11 @@ void updateMainScreen(bool offlineMode, bool validWifiSetup, bool validWeather, 
     if(previousOfflineMode != offlineMode)
     {
         previousOfflineMode = offlineMode;
+    }
+
+    if(previousNoInternet != noInternet)
+    {
+        previousNoInternet = noInternet;
     }
 }
 

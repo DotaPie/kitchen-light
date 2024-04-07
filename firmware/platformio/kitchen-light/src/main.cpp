@@ -63,11 +63,13 @@ WifiSignal wifiSignal = WifiSignal::DISCONNECTED;
 Weather weather = Weather::NONE;
 bool validWeather = false;
 uint32_t weatherSyncTimer = 0; // value does not matter
+bool weatherValidOnce = false;
 
 // time sync globals
 bool validDateTime = false;
 struct tm timeInfo;
 volatile uint32_t dateTimeSyncTimer = 0;
+bool dateTimeValidOnce = false;
 
 // other globals
 WiFiServer server(WIFI_SERVER_PORT); 
@@ -901,6 +903,8 @@ bool updateWeatherTelemetry()
     CONSOLE("  |-- weather string: ");
     CONSOLE_CRLF(weatherString[(uint8_t)weather]);
 
+    weatherValidOnce = true;
+
     return true;
 }
 
@@ -1128,6 +1132,7 @@ void resetDatetime()
 void callbackSyncDateTime(struct timeval *tv)
 {
     dateTimeSyncTimer = millis();
+    dateTimeValidOnce = true;
     CONSOLE_CRLF("NTP SYNC: OK")
 }
 
@@ -1153,12 +1158,13 @@ void setup()
     if(setupWifi())
     {
         validDateTime = syncDateTime(true, SETUP_SYNC_DATE_TIME_TIMEOUT_MS);
-        setTimezone();
+        setTimezone(); // we can set timezone if we failed to NTP sync
         validWeather = updateWeatherTelemetry();
 
         // in setup we can retry telemetry request
         if(!validWeather)
         {
+            delay(2000);
             validWeather = updateWeatherTelemetry();   
         }
 
@@ -1218,10 +1224,11 @@ void loop()
              */
             clearDisplay();
             updateMainScreen(
+                (!validWeather && !validDateTime), // both failing indicates most probably no internet connection, especially with pool.ntp.org
                 offlineMode, 
                 validWifiSetup, 
-                validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup) ? true : false), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
-                validDateTime ? validDateTime : ((millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS && validWifiSetup) ? true : false), // keep displaying date and time up to DATE_TIME_SYNC_TIMEOUT_MS even if not synced with NTP
+                (validWeather && weatherValidOnce) ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup && weatherValidOnce) ? true : false), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
+                (validDateTime && dateTimeValidOnce) ? validDateTime : ((millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS && validWifiSetup && dateTimeValidOnce) ? true : false), // keep displaying date and time up to DATE_TIME_SYNC_TIMEOUT_MS even if not synced with NTP
                 true, 
                 timeInfo.tm_hour, 
                 timeInfo.tm_min, 
@@ -1317,10 +1324,11 @@ void loop()
                      * Idea is to override validDateTime from getLocalTime() return after long period of time.
                      */
                     updateMainScreen(
+                            (!validWeather && !validDateTime), // both failing indicates most probably no internet connection, especially with pool.ntp.org
                             offlineMode, 
                             validWifiSetup, 
-                            validWeather ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup) ? true : false), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
-                            validDateTime ? validDateTime : ((millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS && validWifiSetup) ? true : false), // keep displaying date and time up to DATE_TIME_SYNC_TIMEOUT_MS even if not synced with NTP
+                            (validWeather && weatherValidOnce) ? validWeather : ((millis() - weatherSyncTimer < WEATHER_SYNC_TIMEOUT_MS && validWifiSetup && weatherValidOnce) ? true : false), // keep displaying weather up to WEATHER_SYNC_TIMEOUT_MS even if not updated
+                            (validDateTime && dateTimeValidOnce) ? validDateTime : ((millis() - dateTimeSyncTimer < DATE_TIME_SYNC_TIMEOUT_MS && validWifiSetup && dateTimeValidOnce) ? true : false), // keep displaying date and time up to DATE_TIME_SYNC_TIMEOUT_MS even if not synced with NTP
                             false, 
                             timeInfo.tm_hour, 
                             timeInfo.tm_min, 
