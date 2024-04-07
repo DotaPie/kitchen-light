@@ -1163,7 +1163,6 @@ void setup()
 
     CONSOLE_SERIAL.begin(CONSOLE_BAUDRATE);
     CONSOLE_CRLF("~~~ SETUP ~~~")
-    CONSOLE_CRLF(sntp_get_sync_interval());
     loadPreferences();
     resetDatetime();
     setupRotaryEncoders();
