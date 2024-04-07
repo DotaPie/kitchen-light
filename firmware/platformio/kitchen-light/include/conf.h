@@ -1,6 +1,9 @@
 #ifndef CONF_H
 #define CONF_H
 
+// version
+#define FW_VERSION "v1.0"
+
 /* What is affected by development macro?
  *
  * 1) Soft AP SSID is always Kitchen light #1234 and Soft AP PWD is always 12345678, instead of being randomly generated on each factory reset.

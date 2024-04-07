@@ -1163,6 +1163,9 @@ void setup()
 
     CONSOLE_SERIAL.begin(CONSOLE_BAUDRATE);
     CONSOLE_CRLF("~~~ SETUP ~~~")
+    CONSOLE("FW version: ")
+    CONSOLE_CRLF(FW_VERSION)
+
     loadPreferences();
     resetDatetime();
     setupRotaryEncoders();
