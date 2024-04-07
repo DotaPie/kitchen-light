@@ -65,6 +65,7 @@ Weather weather = Weather::NONE;
 bool validWeather = false;
 uint32_t weatherSyncTimer = 0; // value does not matter
 bool weatherValidOnce = false;
+bool forceWeatherUpdate = false;
 
 // time sync globals
 bool validDateTime = false;
@@ -1148,6 +1149,12 @@ bool checkInternetConnection()
     CONSOLE("INTERNET CONNECTION: ")
     CONSOLE_CRLF(ret ? "OK" : "ERROR")
 
+    // if internet connection was restored, update weather asap
+    if(!internetConnection && ret)
+    {
+        forceWeatherUpdate = true;
+    }
+
     return ret;
 }
 
@@ -1370,9 +1377,14 @@ void loop()
                 }
 
                 // update weather
-                if(millis() - weatherTimer > UPDATE_WEATHER_MS)
+                if(millis() - weatherTimer > UPDATE_WEATHER_MS || forceWeatherUpdate)
                 {
                     weatherTimer = millis();
+
+                    if(forceWeatherUpdate)
+                    {
+                        forceWeatherUpdate = false;
+                    }
 
                     if(WiFi.status() == WL_CONNECTED)
                     {
