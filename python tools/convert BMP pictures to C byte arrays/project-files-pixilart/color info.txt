@@ -1,7 +1,7 @@
 sun: 255 174 0
-moon: 255 174 0
+moon: 255 174 0 (updated)
 cloud: 232 232 232
-darker cloud: 92 92 92
+darker cloud: 160 160 160 (updated)
 rain: 153 217 234
 mist: 232 232 232
 snow: 232 232 232
